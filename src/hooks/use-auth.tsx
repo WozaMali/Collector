@@ -254,8 +254,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('🔐 Starting Google sign-in...');
       
-      const { Capacitor } = await import('@capacitor/core');
-      const isNative = Capacitor.isNativePlatform();
+      // Check if we're in a native environment (web builds won't have Capacitor)
+      // Webpack is configured to ignore Capacitor modules in web builds
+      let isNative = false;
+      try {
+        const capacitorModule = await import('@capacitor/core');
+        if (capacitorModule?.Capacitor) {
+          isNative = capacitorModule.Capacitor.isNativePlatform();
+        }
+      } catch (e) {
+        // Capacitor not available (web environment), continue with web flow
+        console.log('ℹ️ Capacitor not available, using web OAuth flow');
+        isNative = false;
+      }
+      
       const redirectTo = isNative
         ? 'com.wozamali.app://auth/callback'
         : `${window.location.origin}/login`;
@@ -271,13 +283,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (isNative && data?.url) {
         try {
-          const { Browser } = await import('@capacitor/browser');
-          await Browser.open({ url: data.url, presentationStyle: 'fullscreen' });
-          return { success: true };
+          const browserModule = await import('@capacitor/browser');
+          if (browserModule?.Browser) {
+            await browserModule.Browser.open({ url: data.url, presentationStyle: 'fullscreen' });
+            return { success: true };
+          }
         } catch (e) {
-          window.location.href = data.url;
-          return { success: true };
+          // Fallback to web redirect if Capacitor browser fails
+          console.log('⚠️ Capacitor browser not available, using web redirect');
         }
+        // Fallback to web redirect
+        window.location.href = data.url;
+        return { success: true };
       }
 
       if (error) {

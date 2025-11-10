@@ -28,6 +28,19 @@ const nextConfig = {
 	
 	// Webpack configuration
 	webpack: (config, { isServer, dev }) => {
+		// Ignore Capacitor modules in web builds (only available in native)
+		const webpack = require('webpack');
+		config.plugins.push(
+			new webpack.IgnorePlugin({
+				resourceRegExp: /^@capacitor\/core$/,
+				contextRegExp: /node_modules/,
+			}),
+			new webpack.IgnorePlugin({
+				resourceRegExp: /^@capacitor\/browser$/,
+				contextRegExp: /node_modules/,
+			})
+		);
+		
 		if (!isServer) {
 			config.resolve.fallback = {
 				...config.resolve.fallback,
