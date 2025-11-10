@@ -101,6 +101,7 @@ export default function CollectorAuthPage() {
 
   const loadTownships = async () => {
     try {
+      // Use the same source as the Main App sign-up flow
       const { data, error } = await supabase
         .from('address_townships')
         .select('id, township_name, city, postal_code')
@@ -108,15 +109,17 @@ export default function CollectorAuthPage() {
 
       if (error) {
         console.error('Error loading townships:', error);
-      } else {
-        const mapped: Township[] = (data || []).map((t: any) => ({
-          id: t.id,
-          name: t.township_name ?? t.name ?? '',
-          city: t.city ?? '',
-          postal_code: t.postal_code ?? ''
-        }));
-        setTownships(mapped);
+        setTownships([]);
+        return;
       }
+
+      const mapped: Township[] = ((data as any[]) || []).map((t: any) => ({
+        id: t.id,
+        name: t.township_name ?? t.name ?? '',
+        city: t.city ?? '',
+        postal_code: t.postal_code ?? ''
+      }));
+      setTownships(mapped);
     } catch (error) {
       console.error('Error loading townships:', error);
     }

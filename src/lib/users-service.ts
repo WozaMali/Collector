@@ -37,8 +37,6 @@ export class UsersService {
         console.error('Error fetching registered users:', error);
         return { data: null, error: error.message };
       }
-
-      return { data: data || [], error: null };
     } catch (error) {
       console.error('Exception fetching registered users:', error);
       return { data: null, error: 'An unexpected error occurred' };
@@ -117,35 +115,58 @@ export class UsersService {
     try {
       const allowedRoleNames = ['resident', 'customer', 'member', 'user'];
 
-      // Primary approach: filter via related roles.name to avoid UUID casting issues
-      let { data, error } = await supabase
-        .from('users')
-        .select(`
-          id,
-          email,
-          full_name,
-          first_name,
-          last_name,
-          phone,
-          role_id,
-          status,
-          created_at,
-          updated_at,
-          street_addr,
-          township_id,
-          subdivision,
-          suburb,
-          city,
-          postal_code,
-          area_id,
-          roles!role_id(name)
-        `)
-        .eq('status', 'active')
-        .in('roles.name', allowedRoleNames)
-        .order('created_at', { ascending: false });
+      // Helper to build the base select (must be rebuilt per page)
+      const buildPrimary = () =>
+        supabase
+          .from('users')
+          .select(`
+            id,
+            email,
+            full_name,
+            first_name,
+            last_name,
+            phone,
+            role_id,
+            status,
+            created_at,
+            updated_at,
+            street_addr,
+            township_id,
+            subdivision,
+            suburb,
+            city,
+            postal_code,
+            area_id,
+            roles!role_id(name)
+          `)
+          .eq('status', 'active')
+          .in('roles.name', allowedRoleNames)
+          .order('created_at', { ascending: false });
 
-      if (error) {
-        console.warn('Primary active customers query failed, attempting fallback via roles table:', error);
+      // Paged fetch to bypass PostgREST 1,000 row cap
+      const pageSize = 1000;
+      const maxRows = 10000; // safety guard
+      let allRows: any[] = [];
+      let page = 0;
+      let primaryError: any = null;
+      while (page * pageSize < maxRows) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+        const { data: pageData, error } = await buildPrimary().range(from, to);
+        if (error) {
+          primaryError = error;
+          break;
+        }
+        const rows = pageData || [];
+        allRows = allRows.concat(rows);
+        if (rows.length < pageSize) break; // last page
+        page += 1;
+      }
+      if (!primaryError) {
+        return { data: allRows, error: null };
+      }
+
+      console.warn('Primary active customers query failed, attempting fallback via roles table:', primaryError);
         // Fallback: resolve role IDs by name, then filter users by role_id IN ids
         const { data: roleRows, error: roleErr } = await supabase
           .from('roles')
@@ -154,37 +175,49 @@ export class UsersService {
 
         if (!roleErr && roleRows && roleRows.length > 0) {
           const allowedRoleIds = roleRows.map(r => r.id);
-          const { data: usersByIds, error: usersErr } = await supabase
-            .from('users')
-            .select(`
-              id,
-              email,
-              full_name,
-              first_name,
-              last_name,
-              phone,
-              role_id,
-              status,
-              created_at,
-              updated_at,
-              street_addr,
-              township_id,
-              subdivision,
-              suburb,
-              city,
-              postal_code,
-              area_id
-            `)
-            .eq('status', 'active')
-            .in('role_id', allowedRoleIds)
-            .order('created_at', { ascending: false });
+          const buildFallback = () =>
+            supabase
+              .from('users')
+              .select(`
+                id,
+                email,
+                full_name,
+                first_name,
+                last_name,
+                phone,
+                role_id,
+                status,
+                created_at,
+                updated_at,
+                street_addr,
+                township_id,
+                subdivision,
+                suburb,
+                city,
+                postal_code,
+                area_id
+              `)
+              .eq('status', 'active')
+              .in('role_id', allowedRoleIds)
+              .order('created_at', { ascending: false });
 
-          if (usersErr) {
-            console.error('Fallback users by role IDs failed:', usersErr);
-            return { data: null, error: usersErr.message };
+          let allFallback: any[] = [];
+          let p = 0;
+          while (p * pageSize < maxRows) {
+            const from = p * pageSize;
+            const to = from + pageSize - 1;
+            const { data: pageData, error: usersErr } = await buildFallback().range(from, to);
+            if (usersErr) {
+              console.error('Fallback users by role IDs failed:', usersErr);
+              return { data: null, error: usersErr.message };
+            }
+            const rows = pageData || [];
+            allFallback = allFallback.concat(rows);
+            if (rows.length < pageSize) break;
+            p += 1;
           }
 
-          return { data: usersByIds || [], error: null };
+          return { data: allFallback, error: null };
         }
 
         // Final fallback: return active users without role filtering
@@ -193,9 +226,7 @@ export class UsersService {
           return { data: null, error: activeErr };
         }
         return { data: activeOnly || [], error: null };
-      }
-
-      return { data: data || [], error: null };
+      
     } catch (error) {
       console.error('Exception fetching active customers:', error);
       return { data: null, error: 'An unexpected error occurred' };

@@ -16,7 +16,6 @@ import {
   TrendingUp,
   Calendar,
   Package,
-  DollarSign,
   Leaf,
   Target,
   Loader2,
@@ -599,7 +598,7 @@ export default function CollectorAnalyticsPage() {
                       <div>
                         <span className="text-xs sm:text-sm font-medium text-white">{statusText}</span>
                         <p className="text-[11px] sm:text-xs text-gray-400">
-                          {activity.customerName} • {activity.weight.toFixed(1)}kg • R{activity.value.toFixed(2)}
+                          {activity.customerName} • {activity.weight.toFixed(1)}kg
                         </p>
                       </div>
                     </div>

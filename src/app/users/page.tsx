@@ -38,6 +38,21 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   
+  // Masking helpers
+  const maskEmail = (email?: string) => {
+    if (!email) return '';
+    const [local, domain] = String(email).split('@');
+    if (!domain) return '***';
+    const l = local || '';
+    if (l.length <= 2) return (l.slice(0, 1) || '*') + '*@' + domain;
+    const middleLen = Math.max(l.length - 2, 3);
+    return l[0] + '*'.repeat(middleLen) + l.slice(-1) + '@' + domain;
+  };
+  const maskAddress = (addr?: string) => {
+    if (!addr) return '';
+    return String(addr).replace(/[A-Za-z0-9]/g, '*');
+  };
+  
   // Collection modal state
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -79,96 +94,19 @@ export default function UsersPage() {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      // Prefer registered users view if available, fall back to all users
-      const reg = await UsersService.getRegisteredUsers();
-      const useRegistered = !reg.error && Array.isArray(reg.data);
-      const { data, error } = useRegistered ? { data: reg.data as any, error: null } : await UsersService.getAllUsers();
+      // Load active customer-facing users directly from public.users
+      const { data, error } = await UsersService.getActiveCustomers();
 
       if (error) {
         console.error('Error loading users:', error);
         return;
       }
 
-      // If using registered view, map to User shape
-      let mapped = useRegistered
-        ? (data as any[]).map((row) => ({
-            id: row.id,
-            email: row.email,
-            full_name: row.email?.split('@')[0] || row.email,
-            first_name: undefined,
-            last_name: undefined,
-            phone: undefined,
-            role_id: row.role_name || row.role_id || 'member',
-            status: row.app_status || 'active',
-            created_at: row.registered_at,
-            updated_at: row.registered_at,
-            street_addr: undefined,
-            township_id: undefined,
-            subdivision: undefined,
-            suburb: undefined,
-            city: undefined,
-            postal_code: undefined,
-            area_id: undefined,
-            role: row.role_name ? { name: row.role_name } : undefined
-          }))
-        : (data || []);
-
-      // Enrich with details from public.users (names and address fields)
-      if (useRegistered && Array.isArray(mapped) && mapped.length > 0) {
-        const emails = (mapped as any[]).map(u => u.email).filter(Boolean);
-        try {
-          const { data: details } = await supabase
-            .from('users')
-            .select('email, first_name, last_name, full_name, street_addr, township_id, subdivision, suburb, city, postal_code, area_id')
-            .in('email', emails);
-
-          const emailToDetails = new Map<string, any>((details || []).map(d => [String(d.email).toLowerCase(), d]));
-          mapped = (mapped as any[]).map(u => {
-            const d = emailToDetails.get(String(u.email || '').toLowerCase());
-            if (!d) return u;
-            return {
-              ...u,
-              first_name: d.first_name ?? u.first_name,
-              last_name: d.last_name ?? u.last_name,
-              full_name: d.full_name ?? u.full_name,
-              street_addr: d.street_addr ?? u.street_addr,
-              township_id: d.township_id ?? u.township_id,
-              subdivision: d.subdivision ?? u.subdivision,
-              suburb: d.suburb ?? u.suburb,
-              city: d.city ?? u.city,
-              postal_code: d.postal_code ?? u.postal_code,
-              area_id: d.area_id ?? u.area_id
-            };
-          });
-        } catch (_e) {}
-
-        // Fallback address from recent unified collections pickup_address
-        const ids = (mapped as any[]).map(u => u.id).filter(Boolean);
-        try {
-          const { data: recentCollections } = await supabase
-            .from('unified_collections')
-            .select('customer_id, pickup_address, created_at')
-            .in('customer_id', ids)
-            .order('created_at', { ascending: false });
-
-          const addressByUser = new Map<string, string>();
-          (recentCollections || []).forEach(row => {
-            const key = String(row.customer_id);
-            if (!addressByUser.has(key) && row.pickup_address) {
-              addressByUser.set(key, String(row.pickup_address));
-            }
-          });
-
-          mapped = (mapped as any[]).map(u => {
-            const hasAddress = u.street_addr || u.subdivision || u.suburb || u.city || u.postal_code;
-            if (hasAddress) return u;
-            const fallback = addressByUser.get(String(u.id));
-            if (!fallback) return u;
-            // Place fallback string into street_addr for display formatting
-            return { ...u, street_addr: fallback };
-          });
-        } catch (_e) {}
-      }
+      // Normalize role field if PostgREST returned roles!role_id(name)
+      const mapped = (data || []).map((u: any) => {
+        const roleFromRelation = (u.roles && typeof u.roles === 'object' && u.roles.name) ? { name: u.roles.name } : undefined;
+        return roleFromRelation ? { ...u, role: roleFromRelation } : u;
+      });
 
       setUsers(mapped as any);
     } catch (error) {
@@ -481,11 +419,11 @@ export default function UsersPage() {
                         {formatUserDisplayName(user)}
                       </div>
                       <div className="text-xs sm:text-sm text-gray-400 truncate">
-                        {user.email}
+                        {maskEmail(user.email)}
                       </div>
                       <div className="flex items-center gap-2 text-[11px] sm:text-xs text-gray-400 truncate">
                         <MapPin className="h-3 w-3 text-orange-400 flex-shrink-0" />
-                        <span className="truncate" title={formatAddress(user)}>{formatAddress(user)}</span>
+                        <span className="truncate" title="Address hidden for privacy">{maskAddress(formatAddress(user))}</span>
                       </div>
                     </div>
                   </div>

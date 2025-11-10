@@ -9,7 +9,6 @@ import {
   Package, 
   Users, 
   TrendingUp, 
-  DollarSign,
   Calendar,
   MapPin,
   History,
@@ -113,13 +112,6 @@ export default function DashboardPage() {
       change: "",
       icon: Package,
       color: "text-blue-500"
-    },
-    {
-      title: "Wallet Balance",
-      value: `R${stats.walletBalance.toFixed(2)}`,
-      change: "",
-      icon: DollarSign,
-      color: "text-green-500"
     },
     {
       title: "Total Weight",

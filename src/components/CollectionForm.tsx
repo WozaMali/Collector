@@ -306,7 +306,7 @@ export default function CollectionForm({ collectorId, residentId, onSuccess, onC
                   />
                 </div>
                 <div className="col-span-1 md:col-span-1">
-                  <label className={`block text-[11px] sm:text-xs mb-1 ${isModal ? 'text-gray-300' : 'text-gray-700'}`}>Rate (R/kg)</label>
+                  <label className={`block text-[11px] sm:text-xs mb-1 ${isModal ? 'text-gray-300' : 'text-gray-700'}`}>Unit Credit (C/kg)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -347,8 +347,8 @@ export default function CollectionForm({ collectorId, residentId, onSuccess, onC
               <div className="flex items-center justify-between text-xs sm:text-sm">
                 <div className={`${isModal ? 'text-gray-300' : 'text-gray-700'}`}>Total Weight</div>
                 <div className={`${isModal ? 'text-white' : 'text-gray-900'} font-medium`}>{total_weight_kg.toFixed(2)} kg</div>
-                <div className={`${isModal ? 'text-gray-300' : 'text-gray-700'}`}>Estimated Value</div>
-                <div className={`${isModal ? 'text-white' : 'text-gray-900'} font-medium`}>R {total_value.toFixed(2)}</div>
+                <div className={`${isModal ? 'text-gray-300' : 'text-gray-700'}`}>Total Credits</div>
+                <div className={`${isModal ? 'text-white' : 'text-gray-900'} font-medium`}>C {total_value.toFixed(2)}</div>
               </div>
             );
           })()}

@@ -88,6 +88,28 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
   const [scalePhoto, setScalePhoto] = useState<File | null>(null);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
+  // Masking helpers
+  const maskEmail = (email?: string) => {
+    if (!email) return '';
+    const [local, domain] = String(email).split('@');
+    if (!domain) return '***';
+    const l = local || '';
+    if (l.length <= 2) return (l.slice(0, 1) || '*') + '*@' + domain;
+    const middleLen = Math.max(l.length - 2, 3);
+    return l[0] + '*'.repeat(middleLen) + l.slice(-1) + '@' + domain;
+  };
+  const maskPhone = (phone?: string) => {
+    if (!phone) return '';
+    const p = phone.replace(/\s+/g, '');
+    if (p.length <= 4) return '*'.repeat(Math.max(p.length, 4));
+    const middleLen = Math.max(p.length - 4, 4);
+    return p.slice(0, 2) + '*'.repeat(middleLen) + p.slice(-2);
+  };
+  const maskAddress = (addr?: string) => {
+    if (!addr) return '';
+    return String(addr).replace(/[A-Za-z0-9]/g, '*');
+  };
+
   // Load materials when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -459,7 +481,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                     </div>
                     <div>
                       <span className="text-sm font-medium text-gray-300">Email Address</span>
-                      <p className="text-white font-semibold">{user.email}</p>
+                      <p className="text-white font-semibold">{maskEmail(user.email)}</p>
                     </div>
                   </div>
                 </div>
@@ -470,7 +492,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                     </div>
                     <div>
                       <span className="text-sm font-medium text-gray-300">Phone Number</span>
-                      <p className="text-white font-semibold">{user.phone || 'Not provided'}</p>
+                      <p className="text-white font-semibold">{maskPhone(user.phone) || 'Not provided'}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3 p-3 bg-gray-800/30 rounded-lg">
@@ -479,8 +501,8 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                     </div>
                     <div>
                       <span className="text-sm font-medium text-gray-300">Location</span>
-                      <p className="text-white font-semibold">
-                        {user.pickup_address || user.address || 'Address not provided'}
+                      <p className="text-white font-semibold" title="Address hidden for privacy">
+                        {maskAddress(user.pickup_address || user.address || 'Address not provided')}
                       </p>
                     </div>
                   </div>
@@ -573,7 +595,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-gray-300 flex items-center space-x-2">
                         <TrendingUp className="h-4 w-4" />
-                        <span>Unit Price (R/kg)</span>
+                        <span>Unit Credit (C/kg)</span>
                       </Label>
                       <Input
                         type="number"
@@ -590,7 +612,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                       <div className="flex items-center space-x-2">
                         <div className="flex items-center space-x-2 p-2 bg-green-500/10 rounded-lg flex-1">
                           <span className="text-sm text-green-400 font-medium">
-                            R {((material.kilograms || 0) * (material.unitPrice || 0)).toFixed(2)}
+                            C {((material.kilograms || 0) * (material.unitPrice || 0)).toFixed(2)}
                           </span>
                         </div>
                         <Button
@@ -633,9 +655,9 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                       <Package className="h-5 w-5 text-green-400" />
                     </div>
                     <div>
-                      <span className="text-sm font-medium text-gray-300">Total Value</span>
+                      <span className="text-sm font-medium text-gray-300">Total Credits</span>
                       <Badge variant="secondary" className="ml-2 bg-green-500/20 text-green-300 border-green-500/30">
-                        R {getTotalValue().toFixed(2)}
+                        C {getTotalValue().toFixed(2)}
                       </Badge>
                     </div>
                   </div>

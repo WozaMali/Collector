@@ -17,7 +17,8 @@ import {
   Save,
   CheckCircle,
   AlertCircle,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Lock
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
@@ -57,6 +58,12 @@ export default function CollectorSettings() {
   const [selectedTownship, setSelectedTownship] = useState<Township | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
+  // Password change state
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   const [formData, setFormData] = useState<SettingsData>({
     firstName: "",
@@ -321,6 +328,40 @@ export default function CollectorSettings() {
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(false);
+
+    // Basic validation
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError("Password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Passwords do not match.");
+      return;
+    }
+
+    try {
+      setIsChangingPassword(true);
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        setPasswordError(error.message || "Failed to update password.");
+        return;
+      }
+      setPasswordSuccess(true);
+      setNewPassword("");
+      setConfirmPassword("");
+      // Hide success after a moment
+      setTimeout(() => setPasswordSuccess(false), 3000);
+    } catch (err: any) {
+      setPasswordError(err?.message || "Failed to update password.");
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -638,6 +679,84 @@ export default function CollectorSettings() {
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   Logout
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Change Password */}
+        <Card className="bg-gray-800 border-gray-700 mt-8">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Lock className="h-5 w-5 text-orange-500" />
+              Change Password
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              Update your account password
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="newPassword" className="text-white">New Password</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="bg-gray-700 border-gray-600 text-white"
+                    placeholder="Enter a new password"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="confirmPassword" className="text-white">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="bg-gray-700 border-gray-600 text-white"
+                    placeholder="Re-enter new password"
+                  />
+                </div>
+              </div>
+
+              {passwordError && (
+                <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
+                  <p className="text-red-400 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    {passwordError}
+                  </p>
+                </div>
+              )}
+              {passwordSuccess && (
+                <div className="p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
+                  <p className="text-green-400 flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    Password updated successfully
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <Button
+                  type="submit"
+                  disabled={isChangingPassword}
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                  {isChangingPassword ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Update Password
+                    </>
+                  )}
                 </Button>
               </div>
             </form>
