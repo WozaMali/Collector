@@ -255,17 +255,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('🔐 Starting Google sign-in...');
       
       // Check if we're in a native environment (web builds won't have Capacitor)
-      // Webpack is configured to ignore Capacitor modules in web builds
+      // Check for Capacitor at runtime via window object (no import needed)
       let isNative = false;
-      try {
-        const capacitorModule = await import('@capacitor/core');
-        if (capacitorModule?.Capacitor) {
-          isNative = capacitorModule.Capacitor.isNativePlatform();
+      if (typeof window !== 'undefined') {
+        // Capacitor exposes itself on window.Capacitor in native apps
+        const Capacitor = (window as any).Capacitor;
+        if (Capacitor && typeof Capacitor.isNativePlatform === 'function') {
+          isNative = Capacitor.isNativePlatform();
         }
-      } catch (e) {
-        // Capacitor not available (web environment), continue with web flow
-        console.log('ℹ️ Capacitor not available, using web OAuth flow');
-        isNative = false;
       }
       
       const redirectTo = isNative
@@ -283,9 +280,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (isNative && data?.url) {
         try {
-          const browserModule = await import('@capacitor/browser');
-          if (browserModule?.Browser) {
-            await browserModule.Browser.open({ url: data.url, presentationStyle: 'fullscreen' });
+          // Access Capacitor Browser plugin via window object (no import needed)
+          const Browser = (window as any).Capacitor?.Plugins?.Browser;
+          if (Browser && typeof Browser.open === 'function') {
+            await Browser.open({ url: data.url, presentationStyle: 'fullscreen' });
             return { success: true };
           }
         } catch (e) {
