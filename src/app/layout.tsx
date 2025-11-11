@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "@/components/ui/sonner";
 import PWAInstaller from "@/components/PWAInstaller";
+import SplashScreen from "@/components/SplashScreen";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -62,6 +63,7 @@ export default function RootLayout({
         }} />
       </head>
       <body className={inter.className}>
+        <SplashScreen />
         <ThemeProvider
           defaultTheme="system"
           storageKey="woza-mali-theme"
