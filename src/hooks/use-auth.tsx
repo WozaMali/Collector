@@ -30,46 +30,103 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check for existing session on mount
+  // Check for existing session on mount with timeout
   useEffect(() => {
-    checkUser();
+    let sessionTimeout: NodeJS.Timeout | null = null;
+    
+    // Add timeout to prevent infinite loading
+    sessionTimeout = setTimeout(() => {
+      console.warn('AuthProvider: Session check timeout, clearing loading state');
+      setIsLoading(false);
+    }, 10000); // 10 second timeout
+    
+    checkUser().finally(() => {
+      if (sessionTimeout) {
+        clearTimeout(sessionTimeout);
+      }
+    });
     
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session) {
-          await checkUser();
+          // Don't await - let it happen in background
+          checkUser().catch((error) => {
+            console.error('Error checking user on sign in:', error);
+            setIsLoading(false);
+          });
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
+          setIsLoading(false);
+        } else {
+          setIsLoading(false);
         }
-        setIsLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      if (sessionTimeout) {
+        clearTimeout(sessionTimeout);
+      }
+    };
   }, []);
 
   const checkUser = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Add timeout to session fetch
+      const sessionPromise = supabase.auth.getSession();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Session fetch timeout')), 8000)
+      );
+      
+      const { data: { session } } = await Promise.race([
+        sessionPromise,
+        timeoutPromise
+      ]) as { data: { session: any } };
+      
       if (session?.user) {
         console.log('🔍 Checking collector profile for user:', session.user.id);
         
-        // Get user profile from unified users table (no FK joins to avoid 404s)
-        const { data: userRow, error } = await supabase
+        // Get user profile with timeout protection
+        const userProfilePromise = supabase
           .from('users')
           .select('id, email, first_name, last_name, phone, role_id, status')
           .eq('id', session.user.id)
           .single();
+        
+        const userProfileTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('User profile fetch timeout')), 8000)
+        );
+        
+        const { data: userRow, error } = await Promise.race([
+          userProfilePromise,
+          userProfileTimeout
+        ]) as { data: any; error: any };
 
         if (userRow && !error) {
           console.log('✅ User profile found:', userRow.id);
           // Resolve role name: if role_id is a role name use it; else try roles lookup; fallback 'collector'
           let roleName = (userRow.role_id || '').toString();
           if (!roleName || roleName.includes('-')) {
-            const { data: roleLookup } = await supabase.from('roles').select('id, name').limit(1000);
-            const byId = new Map((roleLookup || []).map((r: any) => [String(r.id), String(r.name)]));
-            roleName = byId.get(String(userRow.role_id)) || roleName || 'collector';
+            try {
+              // Add timeout to role lookup
+              const roleLookupPromise = supabase.from('roles').select('id, name').limit(1000);
+              const roleLookupTimeout = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Role lookup timeout')), 5000)
+              );
+              
+              const { data: roleLookup } = await Promise.race([
+                roleLookupPromise,
+                roleLookupTimeout
+              ]) as { data: any };
+              
+              const byId = new Map((roleLookup || []).map((r: any) => [String(r.id), String(r.name)]));
+              roleName = byId.get(String(userRow.role_id)) || roleName || 'collector';
+            } catch (roleError) {
+              console.warn('Role lookup failed, using default:', roleError);
+              roleName = 'collector';
+            }
           }
 
           // Construct display name with better fallback

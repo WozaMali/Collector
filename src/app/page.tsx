@@ -9,6 +9,23 @@ export default function LandingPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
+  // Add timeout to prevent infinite loading
+  useEffect(() => {
+    const loadingTimeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn('LandingPage: Loading timeout, forcing redirect');
+        // Force redirect after timeout
+        if (!user) {
+          router.replace('/login');
+        } else {
+          router.replace('/dashboard');
+        }
+      }
+    }, 15000); // 15 second timeout
+
+    return () => clearTimeout(loadingTimeout);
+  }, [isLoading, user, router]);
+
   useEffect(() => {
     if (isLoading) return;
     if (user) {
@@ -35,6 +52,7 @@ export default function LandingPage() {
           <Loader2 className="h-6 w-6 animate-spin text-orange-500 mr-2" />
           <p className="text-gray-300">Loading...</p>
         </div>
+        <p className="text-xs text-gray-500 mt-2">If this takes too long, please refresh the page</p>
       </div>
     </div>
   );

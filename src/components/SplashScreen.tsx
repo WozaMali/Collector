@@ -3,27 +3,20 @@
 import { useEffect, useState } from 'react'
 
 export default function SplashScreen() {
-  const [mounted, setMounted] = useState(false)
+  const [show, setShow] = useState(true)
 
   useEffect(() => {
-    // Only render on client to avoid hydration mismatch
-    setMounted(true)
-
-    // Remove splash screen from DOM after animation completes (2.5s = 2s delay + 0.5s animation)
-    // This prevents it from blocking interactions after it's hidden
+    // Hide splash screen after animation completes (2.5s = 2s delay + 0.5s animation)
+    // Use state instead of manual DOM manipulation to avoid React errors
     const timer = setTimeout(() => {
-      const splash = document.getElementById('collector-splash-screen')
-      if (splash) {
-        splash.remove()
-      }
+      setShow(false)
     }, 2500)
 
     return () => clearTimeout(timer)
   }, [])
 
-  // Don't render on server to avoid hydration mismatch
-  // CSS animations can cause style attribute differences between server and client
-  if (!mounted) {
+  // Don't render anything if hidden (React will handle cleanup)
+  if (!show) {
     return null
   }
 

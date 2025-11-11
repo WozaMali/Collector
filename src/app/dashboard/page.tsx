@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
 import Navigation from "@/components/Navigation";
@@ -129,123 +129,169 @@ export default function DashboardPage() {
     }
   ]), [stats]);
 
-  useEffect(() => {
-    let isMounted = true;
-    const load = async () => {
-      if (!user?.id) return;
-      
-      setLoading(true);
-      
-      try {
-        // Get today's date range
-        const today = new Date();
-        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  // Load dashboard data with timeout protection
+  const loadDashboardData = useCallback(async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      // Get today's date range
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
 
-        // Fetch stats data
-        const [
-          { data: todayPickupsData, error: todayPickupsError },
-          { data: totalCustomersData, error: totalCustomersError },
-          { data: recentPickupsData, error: recentPickupsError },
-          { data: walletData, error: walletError }
-        ] = await Promise.all([
-          // Today's pickups count
+      // Fetch stats data with timeout protection
+      const fetchWithTimeout = async (promise: Promise<any>, timeoutMs: number) => {
+        const timeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Fetch timeout')), timeoutMs)
+        );
+        return Promise.race([promise, timeout]);
+      };
+
+      const [
+        { data: todayPickupsData, error: todayPickupsError },
+        { data: totalCustomersData, error: totalCustomersError },
+        { data: recentPickupsData, error: recentPickupsError },
+        { data: walletData, error: walletError }
+      ] = await Promise.all([
+        // Today's pickups count
+        fetchWithTimeout(
           supabase
             .from('unified_collections')
             .select('id', { count: 'exact' })
             .gte('created_at', startOfDay.toISOString())
             .lt('created_at', endOfDay.toISOString())
             .eq('collector_id', user.id),
-          
-          // Total customers count - active users only
+          10000 // 10 second timeout
+        ).catch(() => ({ data: null, error: { message: 'Timeout' } })),
+        
+        // Total customers count - active users only
+        fetchWithTimeout(
           supabase
             .from('users')
             .select('id, first_name, last_name, email, phone, role_id, status, created_at')
             .eq('role_id', '8d5db8bb-52a3-4865-bb18-e1805249c4a2') // resident role
             .eq('status', 'active'), // only active users
-          
-          // Recent pickups
+          10000 // 10 second timeout
+        ).catch(() => ({ data: null, error: { message: 'Timeout' } })),
+        
+        // Recent pickups
+        fetchWithTimeout(
           supabase
             .from('unified_collections')
             .select('id, customer_name, pickup_address, actual_time, status, total_weight_kg, created_at, collector_id, created_by')
             .eq('collector_id', user.id)
             .order('created_at', { ascending: false })
             .limit(5),
-          
-          // Wallet balance and total weight from approved/completed collections
+          10000 // 10 second timeout
+        ).catch(() => ({ data: null, error: { message: 'Timeout' } })),
+        
+        // Wallet balance and total weight from approved/completed collections
+        fetchWithTimeout(
           supabase
             .from('unified_collections')
             .select('status, total_weight_kg, total_value')
             .eq('collector_id', user.id)
-            .in('status', ['approved', 'completed'])
-        ]);
+            .in('status', ['approved', 'completed']),
+          10000 // 10 second timeout
+        ).catch(() => ({ data: null, error: { message: 'Timeout' } }))
+      ]);
 
-        if (!isMounted) return;
-
-        // Calculate stats
-        const todayPickups = todayPickupsData?.length || 0;
-        const totalCustomers = totalCustomersData?.length || 0;
-        
-        // Calculate wallet balance and total weight from approved/completed collections
-        const walletBalance = (walletData || []).reduce((sum, c) => sum + (Number(c.total_value) || 0), 0);
-        const totalWeight = (walletData || []).reduce((sum, c) => sum + (Number(c.total_weight_kg) || 0), 0);
-        
-        // Calculate collection rate based on recent activities (last 30 days)
+      // Calculate stats (handle errors gracefully)
+      const todayPickups = todayPickupsData?.length || 0;
+      const totalCustomers = totalCustomersData?.length || 0;
+      
+      // Calculate wallet balance and total weight from approved/completed collections
+      const walletBalance = (walletData || []).reduce((sum, c) => sum + (Number(c.total_value) || 0), 0);
+      const totalWeight = (walletData || []).reduce((sum, c) => sum + (Number(c.total_weight_kg) || 0), 0);
+      
+      // Calculate collection rate based on recent activities (last 30 days)
+      let collectionRate = 0;
+      try {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         
-        const { data: recentActivitiesData } = await supabase
-          .from('unified_collections')
-          .select('status')
-          .eq('collector_id', user.id)
-          .gte('created_at', thirtyDaysAgo.toISOString());
+        const { data: recentActivitiesData } = await fetchWithTimeout(
+          supabase
+            .from('unified_collections')
+            .select('status')
+            .eq('collector_id', user.id)
+            .gte('created_at', thirtyDaysAgo.toISOString()),
+          10000 // 10 second timeout
+        ).catch(() => ({ data: null }));
         
         const totalRecent = recentActivitiesData?.length || 0;
-        const completedRecent = recentActivitiesData?.filter(item => item.status === 'completed').length || 0;
-        const collectionRate = totalRecent > 0 ? (completedRecent / totalRecent) * 100 : 0;
-
-        setStats({
-          todayPickups,
-          totalCustomers,
-          collectionRate,
-          walletBalance,
-          totalWeight
-        });
-
-        // Map recent pickups
-        const mapped = (recentPickupsData || []).map((row) => ({
-          id: row.id,
-          customer: row.customer_name || 'Customer',
-          address: row.pickup_address || '',
-          time: formatTime(row.actual_time || row.created_at),
-          status: (row.status || '').replace('_', ' ').replace(/^./, (s: string) => s.toUpperCase()),
-          totalKg: typeof row.total_weight_kg === 'number' ? row.total_weight_kg : (row.total_weight_kg ? Number(row.total_weight_kg) : undefined),
-        }));
-        setRecentPickups(mapped);
-
+        const completedRecent = recentActivitiesData?.filter((item: any) => item.status === 'completed').length || 0;
+        collectionRate = totalRecent > 0 ? (completedRecent / totalRecent) * 100 : 0;
       } catch (error) {
-        console.error('Error loading dashboard data:', error);
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        console.warn('Error calculating collection rate:', error);
       }
-    };
 
-    load();
+      setStats({
+        todayPickups,
+        totalCustomers,
+        collectionRate,
+        walletBalance,
+        totalWeight
+      });
 
-    // Subscribe to realtime changes to keep list fresh
-    const channel = supabase.channel('unified_collections_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'unified_collections' }, () => {
-        load();
-      })
-      .subscribe();
+      // Map recent pickups
+      const mapped = (recentPickupsData || []).map((row: any) => ({
+        id: row.id,
+        customer: row.customer_name || 'Customer',
+        address: row.pickup_address || '',
+        time: formatTime(row.actual_time || row.created_at),
+        status: (row.status || '').replace('_', ' ').replace(/^./, (s: string) => s.toUpperCase()),
+        totalKg: typeof row.total_weight_kg === 'number' ? row.total_weight_kg : (row.total_weight_kg ? Number(row.total_weight_kg) : undefined),
+      }));
+      setRecentPickups(mapped);
+
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      // Don't block app if data loading fails
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
+
+  // Load data on mount and when user changes
+  useEffect(() => {
+    let loadingTimeout: NodeJS.Timeout | null = null;
+    let isMounted = true;
+    
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+    
+    // Add timeout to prevent infinite loading
+    loadingTimeout = setTimeout(() => {
+      if (isMounted) {
+        console.warn('Dashboard: Data loading timeout, clearing loading state');
+        setLoading(false);
+      }
+    }, 15000); // 15 second timeout
+    
+    loadDashboardData().finally(() => {
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+      }
+    });
 
     return () => {
       isMounted = false;
-      supabase.removeChannel(channel);
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+      }
     };
-  }, [user?.id]);
+  }, [user?.id, loadDashboardData]);
+
+  // Realtime subscription disabled to prevent loading loops
+  // Can be re-enabled later with proper debouncing if needed
 
   // User search function
   const performUserSearch = async () => {

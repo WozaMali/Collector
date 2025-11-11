@@ -1,4 +1,4 @@
-const CACHE_NAME = 'collector-pwa-v3';
+const CACHE_NAME = 'collector-pwa-v3.0.2';
 const urlsToCache = [
   '/',
   '/dashboard',
@@ -33,6 +33,18 @@ self.addEventListener('fetch', (event) => {
 
   // Never intercept Next static/runtime assets
   if (url.pathname.startsWith('/_next/')) return;
+
+  // Skip API requests and Supabase - always use network, never cache
+  // This prevents service worker from blocking critical API requests
+  if (event.request.url.includes('/api/') || 
+      event.request.url.includes('supabase.co') ||
+      event.request.url.includes('supabase.in') ||
+      event.request.url.includes('/auth/') ||
+      event.request.url.includes('/rest/v1/') ||
+      event.request.url.includes('/realtime/')) {
+    // Network only for API calls - don't intercept, let them pass through
+    return;
+  }
 
   // Navigation requests: network-first to avoid limbo after unlock
   if (event.request.mode === 'navigate') {

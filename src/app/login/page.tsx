@@ -207,9 +207,21 @@ export default function CollectorAuthPage() {
 
   // Redirect if already authenticated (avoid loops until auth resolves)
   useEffect(() => {
-    if (isLoading) return;
+    // Add timeout to prevent infinite waiting
+    const redirectTimeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn('LoginPage: Auth loading timeout, checking user state');
+        // Force check after timeout
+      }
+    }, 15000); // 15 second timeout
+
+    if (isLoading) {
+      return () => clearTimeout(redirectTimeout);
+    }
+    
     if (user && user.role) {
       console.log('🔍 Debug - User authenticated with role:', user.role);
+      clearTimeout(redirectTimeout);
       if (user.role === 'collector') {
         console.log('🔍 Debug - Redirecting to dashboard');
         router.replace('/dashboard');
@@ -222,8 +234,11 @@ export default function CollectorAuthPage() {
       }
     } else if (user && !user.role) {
       console.log('🔍 Debug - User authenticated but no role, redirecting to dashboard for dev mode');
+      clearTimeout(redirectTimeout);
       router.replace('/dashboard');
     }
+
+    return () => clearTimeout(redirectTimeout);
   }, [user, isLoading, router]);
 
   // Sign-in handlers
