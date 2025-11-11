@@ -29,6 +29,38 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            // Service worker cleanup (skip on native Capacitor)
+            (function(){
+              try {
+                var isNative = false;
+                try {
+                  if (typeof window !== 'undefined' && window.Capacitor) {
+                    var mod = { Capacitor: window.Capacitor };
+                    if (mod.Capacitor && typeof mod.Capacitor.isNativePlatform === 'function') {
+                      isNative = mod.Capacitor.isNativePlatform() === true;
+                    }
+                  }
+                } catch (e) {}
+                if (isNative) return;
+                if (typeof window !== 'undefined' && window.isSecureContext && 'serviceWorker' in navigator) {
+                  (async function(){
+                    try {
+                      var regs = await navigator.serviceWorker.getRegistrations();
+                      // Only unregister if there are conflicts - let PWAInstaller handle registration
+                      // for (var i=0;i<regs.length;i++){ await regs[i].unregister(); }
+                      var names = await caches.keys();
+                      for (var j=0;j<names.length;j++){ await caches.delete(names[j]); }
+                    } catch (err) { console.error(err); }
+                  })();
+                }
+              } catch (err) { console.error(err); }
+            })();
+          `
+        }} />
+      </head>
       <body className={inter.className}>
         <ThemeProvider
           defaultTheme="system"

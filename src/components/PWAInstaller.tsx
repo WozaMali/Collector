@@ -7,42 +7,65 @@ export default function PWAInstaller() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      // Register service worker
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then((registration) => {
-          console.log('SW registered: ', registration);
+      // Clean up any existing service workers first to avoid conflicts
+      (async () => {
+        try {
+          // Check if we're on native platform (Capacitor) - skip SW on native
+          try {
+            const { Capacitor } = await import('@capacitor/core');
+            if (Capacitor.isNativePlatform()) {
+              // Unregister any existing service workers on native
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              for (const registration of registrations) {
+                await registration.unregister();
+                console.log('🗑️ Service Worker unregistered on native');
+              }
+              return; // Skip SW registration on native
+            }
+          } catch {}
           
-          // If there's already a waiting worker, an update is ready
-          if (registration.waiting && navigator.serviceWorker.controller) {
-            setUpdateAvailable(true);
-          }
+          // Register service worker (non-blocking)
+          navigator.serviceWorker
+            .register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+              
+              // If there's already a waiting worker, an update is ready
+              if (registration.waiting && navigator.serviceWorker.controller) {
+                setUpdateAvailable(true);
+              }
 
-          // Check for updates - only show when installed and it's an update (not first install)
-          registration.addEventListener('updatefound', () => {
-            console.log('Service worker update found');
-            const newWorker = registration.installing;
-            if (newWorker) {
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  setUpdateAvailable(true);
+              // Check for updates - only show when installed and it's an update (not first install)
+              registration.addEventListener('updatefound', () => {
+                console.log('Service worker update found');
+                const newWorker = registration.installing;
+                if (newWorker) {
+                  newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                      setUpdateAvailable(true);
+                    }
+                  });
                 }
               });
-            }
-          });
-          
-          // Handle service worker updates
-          let hasReloaded = false;
-          registration.addEventListener('controllerchange', () => {
-            if (hasReloaded) return;
-            hasReloaded = true;
-            console.log('Service worker controller changed');
-            window.location.reload();
-          });
-        })
-        .catch((registrationError) => {
-          console.log('SW registration failed: ', registrationError);
-        });
+              
+              // Handle service worker updates
+              let hasReloaded = false;
+              registration.addEventListener('controllerchange', () => {
+                if (hasReloaded) return;
+                hasReloaded = true;
+                console.log('Service worker controller changed');
+                window.location.reload();
+              });
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed (non-blocking): ', registrationError);
+              // Don't block the app if SW registration fails
+            });
+        } catch (error) {
+          console.log('Service worker setup error (non-blocking):', error);
+          // Don't block the app
+        }
+      })();
 
       // Listen for service worker messages
       navigator.serviceWorker.addEventListener('message', (event) => {
