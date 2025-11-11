@@ -7,37 +7,78 @@ const rawAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const supabaseUrl = rawUrl?.trim()
 const supabaseAnonKey = rawAnonKey?.trim()
 
-// Debug logging
-console.log('🔌 Creating Supabase client with:')
-console.log('🔌 URL:', supabaseUrl)
-console.log('🔌 Key length:', supabaseAnonKey?.length || 0)
+// Lazy initialization to allow build-time execution without env vars
+// During build, Next.js may execute this code without env vars set
+// We'll create a stub client during build and throw at runtime if missing
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
+let supabaseClient: ReturnType<typeof createClient> | null = null
+
+function getSupabaseClient() {
+  // If client already initialized, return it
+  if (supabaseClient) {
+    return supabaseClient
+  }
+
+  // Check if we're in a build environment (no window, and not production runtime)
+  const isBuildTime = typeof window === 'undefined' && process.env.NEXT_PHASE !== 'production-server'
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    if (isBuildTime) {
+      // During build, create a stub client to prevent build errors
+      // This will fail at runtime if env vars aren't set
+      supabaseClient = createClient('https://placeholder.supabase.co', 'placeholder-key', {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+          detectSessionInUrl: false,
+        },
+      })
+      return supabaseClient
+    } else {
+      // At runtime, throw error if env vars are missing
+      throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
+    }
+  }
+
+  // Debug logging (only at runtime)
+  console.log('🔌 Creating Supabase client with:')
+  console.log('🔌 URL:', supabaseUrl)
+  console.log('🔌 Key length:', supabaseAnonKey.length)
+
+  // Create real client with actual env vars
+  supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+      redirectTo: process.env.NEXT_PUBLIC_SUPABASE_REDIRECT_URL || 'http://localhost:8082'
+    },
+    db: {
+      schema: 'public'
+    },
+    global: {
+      headers: {
+        'X-Client-Info': 'collector-app'
+      }
+    },
+    // Add timeout configuration to prevent save operation timeouts
+    realtime: {
+      timeout: 30000, // 30 seconds
+      heartbeatIntervalMs: 30000
+    }
+  })
+  console.log('✅ Supabase client created successfully with timeout configuration')
+  return supabaseClient
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    redirectTo: process.env.NEXT_PUBLIC_SUPABASE_REDIRECT_URL || 'http://localhost:8082'
+// Export a Proxy that lazily initializes the client on first access
+export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
+  get(_target, prop) {
+    const client = getSupabaseClient()
+    const value = (client as any)[prop]
+    return typeof value === 'function' ? value.bind(client) : value
   },
-  db: {
-    schema: 'public'
-  },
-  global: {
-    headers: {
-      'X-Client-Info': 'collector-app'
-    }
-  },
-  // Add timeout configuration to prevent save operation timeouts
-  realtime: {
-    timeout: 30000, // 30 seconds
-    heartbeatIntervalMs: 30000
-  }
 })
-console.log('✅ Supabase client created successfully with timeout configuration')
 
 // Database types matching your new schema
 export interface Profile {
