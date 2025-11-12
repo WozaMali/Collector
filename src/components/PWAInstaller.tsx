@@ -11,18 +11,40 @@ export default function PWAInstaller() {
       (async () => {
         try {
           // Check if we're on native platform (Capacitor) - skip SW on native
+          // Use optional import to avoid build errors if Capacitor is not available
           try {
-            const { Capacitor } = await import('@capacitor/core');
-            if (Capacitor.isNativePlatform()) {
-              // Unregister any existing service workers on native
-              const registrations = await navigator.serviceWorker.getRegistrations();
-              for (const registration of registrations) {
-                await registration.unregister();
-                console.log('🗑️ Service Worker unregistered on native');
+            // Check if Capacitor is available via window object first (safer)
+            if (typeof window !== 'undefined' && (window as any).Capacitor) {
+              const Capacitor = (window as any).Capacitor;
+              if (Capacitor.isNativePlatform && Capacitor.isNativePlatform()) {
+                // Unregister any existing service workers on native
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const registration of registrations) {
+                  await registration.unregister();
+                  console.log('🗑️ Service Worker unregistered on native');
+                }
+                return; // Skip SW registration on native
               }
-              return; // Skip SW registration on native
             }
-          } catch {}
+            // Try dynamic import only if window.Capacitor check fails
+            try {
+              const { Capacitor } = await import('@capacitor/core');
+              if (Capacitor.isNativePlatform()) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const registration of registrations) {
+                  await registration.unregister();
+                  console.log('🗑️ Service Worker unregistered on native');
+                }
+                return;
+              }
+            } catch (importError) {
+              // Capacitor not available - this is fine for web PWA
+              console.log('Capacitor not available (web PWA mode)');
+            }
+          } catch (error) {
+            // Ignore errors - continue with PWA setup
+            console.log('Capacitor check failed, continuing with PWA setup');
+          }
           
           // Register service worker (non-blocking)
           navigator.serviceWorker

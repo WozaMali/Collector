@@ -40,33 +40,33 @@ export default function LandingPage() {
   // Show elegant loading screen with black background
   return (
     <div className="min-h-screen bg-black flex items-center justify-center relative overflow-hidden">
-      {/* Elegant background gradient */}
+      {/* Elegant background gradient - Green theme */}
       <div className="absolute inset-0 bg-gradient-to-br from-black via-gray-900 to-black"></div>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(245,158,11,0.1)_0%,transparent_70%)] animate-pulse"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(34,197,94,0.1)_0%,transparent_70%)] animate-pulse"></div>
       
       <div className="text-center relative z-10">
-        {/* Logo with elegant glow effect */}
+        {/* Logo with elegant glow effect - Green theme */}
         <div className="flex justify-center mb-8">
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-yellow-400 rounded-full blur-2xl opacity-30 animate-pulse"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full blur-2xl opacity-30 animate-pulse"></div>
             <img 
-              src="/w yellow.png" 
+              src="/Collector Icon.png" 
               alt="WozaMali Logo" 
               className="h-24 w-auto relative z-10 drop-shadow-2xl"
             />
           </div>
         </div>
         
-        {/* App name with gradient text */}
-        <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-orange-400 via-yellow-400 to-orange-400 bg-clip-text text-transparent animate-gradient">
+        {/* App name with gradient text - Green theme */}
+        <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-green-400 via-emerald-400 to-green-400 bg-clip-text text-transparent animate-gradient">
           Woza Mali Collector
         </h1>
         
-        {/* Elegant loading spinner */}
+        {/* Elegant loading spinner - Green theme */}
         <div className="flex items-center justify-center mt-8">
           <div className="relative">
-            <div className="w-12 h-12 border-4 border-gray-800 border-t-orange-500 rounded-full animate-spin"></div>
-            <div className="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-yellow-400 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }}></div>
+            <div className="w-12 h-12 border-4 border-gray-800 border-t-green-500 rounded-full animate-spin"></div>
+            <div className="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-emerald-400 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }}></div>
           </div>
         </div>
         

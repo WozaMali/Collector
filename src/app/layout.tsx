@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "@/components/ui/sonner";
 import PWAInstaller from "@/components/PWAInstaller";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import SplashScreen from "@/components/SplashScreen";
 import RouteTransition from "@/components/RouteTransition";
 
@@ -74,6 +75,7 @@ export default function RootLayout({
             {children}
             <Toaster />
             <PWAInstaller />
+            <PWAInstallPrompt />
           </AuthProvider>
         </ThemeProvider>
       </body>
