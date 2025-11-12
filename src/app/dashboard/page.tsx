@@ -371,7 +371,7 @@ export default function DashboardPage() {
         <div className="text-center">
           <div className="flex justify-center mb-4">
             <img 
-              src="/w%20yellow.png" 
+              src="/w yellow.png" 
               alt="WozaMali Logo" 
               className="h-16 w-auto"
             />
@@ -390,7 +390,7 @@ export default function DashboardPage() {
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
               <img 
-                src="/w%20yellow.png" 
+                src="/w yellow.png" 
                 alt="WozaMali Logo" 
                 className="h-10 w-auto"
               />

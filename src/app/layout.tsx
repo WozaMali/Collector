@@ -6,6 +6,7 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "@/components/ui/sonner";
 import PWAInstaller from "@/components/PWAInstaller";
 import SplashScreen from "@/components/SplashScreen";
+import RouteTransition from "@/components/RouteTransition";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -69,6 +70,7 @@ export default function RootLayout({
           storageKey="woza-mali-theme"
         >
           <AuthProvider>
+            <RouteTransition />
             {children}
             <Toaster />
             <PWAInstaller />

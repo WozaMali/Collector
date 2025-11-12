@@ -384,7 +384,7 @@ export default function CollectorSettings() {
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <img 
-              src="/w%20yellow.png" 
+              src="/w yellow.png" 
               alt="WozaMali Logo" 
               className="h-16 w-auto"
             />

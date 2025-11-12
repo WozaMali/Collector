@@ -266,7 +266,7 @@ export default function UsersPage() {
         <div className="text-center">
           <div className="flex justify-center mb-4">
             <img 
-              src="/w%20yellow.png" 
+              src="/w yellow.png" 
               alt="WozaMali Logo" 
               className="h-16 w-auto"
             />

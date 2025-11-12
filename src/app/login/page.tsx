@@ -499,7 +499,7 @@ export default function CollectorAuthPage() {
           <div className="flex justify-center mb-6">
             <div className="relative">
               <img 
-                src="/w%20yellow.png" 
+                src="/w yellow.png" 
                 alt="WozaMali Logo" 
                 className="h-20 w-auto drop-shadow-2xl"
               />
