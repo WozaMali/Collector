@@ -109,7 +109,225 @@ export class UsersService {
   }
 
   /**
+   * Get active customers with limit (for initial page load)
+   */
+  static async getActiveCustomersLimited(limit: number = 20): Promise<{ data: User[] | null; error: string | null }> {
+    try {
+      const allowedRoleNames = ['resident', 'customer', 'member', 'user'];
+
+      // Get role IDs first (more reliable approach)
+      const { data: roleRows, error: roleErr } = await supabase
+        .from('roles')
+        .select('id, name')
+        .in('name', allowedRoleNames);
+
+      if (roleErr || !roleRows || roleRows.length === 0) {
+        console.warn('Could not fetch roles, returning active users without role filter');
+        // Fallback: return active users without role filtering
+        const { data, error } = await supabase
+          .from('users')
+          .select(`
+            id,
+            email,
+            full_name,
+            first_name,
+            last_name,
+            phone,
+            role_id,
+            status,
+            created_at,
+            updated_at,
+            street_addr,
+            township_id,
+            subdivision,
+            suburb,
+            city,
+            postal_code,
+            area_id
+          `)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(limit);
+
+        if (error) {
+          return { data: null, error: error.message };
+        }
+        return { data: data || [], error: null };
+      }
+
+      // Build allowed role IDs
+      const allowedRoleIds = roleRows.map(r => r.id);
+
+      // Query users with role filter
+      const { data, error } = await supabase
+        .from('users')
+        .select(`
+          id,
+          email,
+          full_name,
+          first_name,
+          last_name,
+          phone,
+          role_id,
+          status,
+          created_at,
+          updated_at,
+          street_addr,
+          township_id,
+          subdivision,
+          suburb,
+          city,
+          postal_code,
+          area_id
+        `)
+        .eq('status', 'active')
+        .in('role_id', allowedRoleIds)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        return { data: null, error: error.message };
+      }
+
+      // Map role IDs back to role names for display
+      const dataWithRoles = (data || []).map(user => ({
+        ...user,
+        role: roleRows.find(r => r.id === user.role_id) ? { name: roleRows.find(r => r.id === user.role_id)!.name } : undefined
+      }));
+
+      return { data: dataWithRoles, error: null };
+    } catch (error) {
+      console.error('Exception fetching active customers (limited):', error);
+      return { data: null, error: 'An unexpected error occurred' };
+    }
+  }
+
+  /**
+   * Search active customers with filters and limit
+   */
+  static async searchActiveCustomers(
+    searchTerm: string,
+    roleFilter?: string,
+    statusFilter?: string,
+    limit: number = 20
+  ): Promise<{ data: User[] | null; error: string | null }> {
+    try {
+      const allowedRoleNames = ['resident', 'customer', 'member', 'user'];
+      const term = (searchTerm || '').trim();
+
+      // Get role IDs first (more reliable than filtering by role name)
+      const { data: roleRows, error: roleErr } = await supabase
+        .from('roles')
+        .select('id, name')
+        .in('name', allowedRoleNames);
+
+      if (roleErr || !roleRows || roleRows.length === 0) {
+        console.warn('Could not fetch roles, searching all active users');
+        // Fallback: search without role filter
+        let query = supabase
+          .from('users')
+          .select(`
+            id,
+            email,
+            full_name,
+            first_name,
+            last_name,
+            phone,
+            role_id,
+            status,
+            created_at,
+            updated_at,
+            street_addr,
+            township_id,
+            subdivision,
+            suburb,
+            city,
+            postal_code,
+            area_id
+          `)
+          .eq('status', statusFilter || 'active')
+          .order('created_at', { ascending: false })
+          .limit(limit);
+
+        if (term) {
+          query = query.or(`full_name.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+          return { data: null, error: error.message };
+        }
+        return { data: data || [], error: null };
+      }
+
+      // Build allowed role IDs
+      let allowedRoleIds = roleRows.map(r => r.id);
+      
+      // Apply role filter if specified
+      if (roleFilter && roleFilter !== 'all') {
+        const filteredRole = roleRows.find(r => r.name === roleFilter);
+        if (filteredRole) {
+          allowedRoleIds = [filteredRole.id];
+        } else {
+          // Role filter not found in allowed roles
+          return { data: [], error: null };
+        }
+      }
+
+      // Build query with role IDs
+      let query = supabase
+        .from('users')
+        .select(`
+          id,
+          email,
+          full_name,
+          first_name,
+          last_name,
+          phone,
+          role_id,
+          status,
+          created_at,
+          updated_at,
+          street_addr,
+          township_id,
+          subdivision,
+          suburb,
+          city,
+          postal_code,
+          area_id
+        `)
+        .eq('status', statusFilter || 'active')
+        .in('role_id', allowedRoleIds)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      // Apply search filter
+      if (term) {
+        query = query.or(`full_name.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.error('Error searching users:', error);
+        return { data: null, error: error.message };
+      }
+
+      // Map role IDs back to role names for display
+      const dataWithRoles = (data || []).map(user => ({
+        ...user,
+        role: roleRows.find(r => r.id === user.role_id) ? { name: roleRows.find(r => r.id === user.role_id)!.name } : undefined
+      }));
+
+      return { data: dataWithRoles, error: null };
+    } catch (error) {
+      console.error('Exception searching active customers:', error);
+      return { data: null, error: 'An unexpected error occurred' };
+    }
+  }
+
+  /**
    * Get active customers (customer-facing roles only), status = active
+   * @deprecated Use getActiveCustomersLimited for better performance
    */
   static async getActiveCustomers(): Promise<{ data: User[] | null; error: string | null }> {
     try {

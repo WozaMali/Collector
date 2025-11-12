@@ -27,16 +27,17 @@ import { formatUserDisplayName, getUserRoleDisplayName, getUserStatusDisplay } f
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { UsersService, type User } from '@/lib/users-service';
 import Navigation from '@/components/Navigation';
-import { supabase } from '@/lib/supabase';
 import CollectionModal from '@/components/CollectionModal';
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [displayedUsers, setDisplayedUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [totalUsersCount, setTotalUsersCount] = useState(0);
   
   // Masking helpers
   const maskEmail = (email?: string) => {
@@ -57,45 +58,21 @@ export default function UsersPage() {
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  // Load users
+  // Load initial users (20 only)
   useEffect(() => {
-    loadUsers();
+    loadInitialUsers();
   }, []);
 
   // Derive normalized role name from user (handles UUID role_id by using joined role)
   const getRoleName = (user: any) => String((user.role?.name || user.role_id || '')).toLowerCase();
 
-  // Filter users based on search and filters
-  useEffect(() => {
-    let filtered = users;
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(user => 
-        user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.phone?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Role filter
-    if (roleFilter !== 'all') {
-      filtered = filtered.filter(user => getRoleName(user) === roleFilter);
-    }
-
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(user => user.status === statusFilter);
-    }
-
-    setFilteredUsers(filtered);
-  }, [users, searchTerm, roleFilter, statusFilter]);
-
-  const loadUsers = async () => {
+  // Load initial 20 users
+  const loadInitialUsers = async () => {
     try {
       setLoading(true);
-      // Load active customer-facing users directly from public.users
-      const { data, error } = await UsersService.getActiveCustomers();
+      setSearching(false);
+      // Load only 20 active customer-facing users
+      const { data, error } = await UsersService.getActiveCustomersLimited(20);
 
       if (error) {
         console.error('Error loading users:', error);
@@ -109,10 +86,65 @@ export default function UsersPage() {
       });
 
       setUsers(mapped as any);
+      setDisplayedUsers(mapped as any);
+      
+      // Get total count for stats (load in background, don't block)
+      UsersService.getActiveCustomers().then(({ data }) => {
+        setTotalUsersCount(data?.length || 0);
+      }).catch(() => {
+        // Ignore errors for total count
+      });
     } catch (error) {
       console.error('Error loading users:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Search users with server-side search
+  const handleSearch = async () => {
+    if (!searchTerm.trim()) {
+      // If search is empty, reload initial 20 users
+      loadInitialUsers();
+      return;
+    }
+
+    try {
+      setSearching(true);
+      setLoading(true);
+      
+      // Search with filters
+      const { data, error } = await UsersService.searchActiveCustomers(
+        searchTerm,
+        roleFilter !== 'all' ? roleFilter : undefined,
+        statusFilter !== 'all' ? statusFilter : undefined,
+        20
+      );
+
+      if (error) {
+        console.error('Error searching users:', error);
+        return;
+      }
+
+      // Normalize role field
+      const mapped = (data || []).map((u: any) => {
+        const roleFromRelation = (u.roles && typeof u.roles === 'object' && u.roles.name) ? { name: u.roles.name } : undefined;
+        return roleFromRelation ? { ...u, role: roleFromRelation } : u;
+      });
+
+      setDisplayedUsers(mapped as any);
+    } catch (error) {
+      console.error('Error searching users:', error);
+    } finally {
+      setLoading(false);
+      setSearching(false);
+    }
+  };
+
+  // Handle search on Enter key
+  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
     }
   };
 
@@ -210,7 +242,11 @@ export default function UsersPage() {
 
   const handleCollectionSuccess = () => {
     // Refresh users data after successful collection
-    loadUsers();
+    if (searchTerm.trim()) {
+      handleSearch();
+    } else {
+      loadInitialUsers();
+    }
   };
 
   const handleCloseCollectionModal = () => {
@@ -218,9 +254,9 @@ export default function UsersPage() {
     setSelectedUser(null);
   };
 
-  // Get unique roles for filter based on normalized role names
+  // Get unique roles for filter (from displayed users or all users)
   const uniqueRoles = Array.from(
-    new Set(users.map((user) => getRoleName(user)).filter((role) => role && role !== ''))
+    new Set(displayedUsers.map((user) => getRoleName(user)).filter((role) => role && role !== ''))
   );
 
 
@@ -257,7 +293,7 @@ export default function UsersPage() {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={loadUsers}
+              onClick={loadInitialUsers}
               className="flex items-center space-x-2 bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
             >
               <RefreshCw className="h-4 w-4" />
@@ -266,7 +302,7 @@ export default function UsersPage() {
             <div className="flex items-center space-x-2">
               <Users className="h-5 w-5 text-orange-500" />
               <span className="text-xs sm:text-sm font-medium text-gray-300">
-                {filteredUsers.length} / {users.length}
+                {displayedUsers.length} {searchTerm.trim() ? 'results' : `of ${totalUsersCount || users.length}`}
               </span>
             </div>
           </div>
@@ -281,7 +317,7 @@ export default function UsersPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-xs sm:text-sm">Total Users</p>
-                <p className="text-xl sm:text-2xl font-bold text-white">{users.length}</p>
+                <p className="text-xl sm:text-2xl font-bold text-white">{totalUsersCount || '...'}</p>
               </div>
               <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
             </div>
@@ -290,12 +326,9 @@ export default function UsersPage() {
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-xs sm:text-sm">Residents</p>
+                <p className="text-gray-400 text-xs sm:text-sm">Showing</p>
                 <p className="text-xl sm:text-2xl font-bold text-white">
-                  {users.filter(u => {
-                    const r = getRoleName(u);
-                    return r === 'resident' || r === 'member';
-                  }).length}
+                  {displayedUsers.length}
                 </p>
               </div>
               <UserCheck className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
@@ -305,9 +338,12 @@ export default function UsersPage() {
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-xs sm:text-sm">Collectors</p>
+                <p className="text-gray-400 text-xs sm:text-sm">Residents</p>
                 <p className="text-xl sm:text-2xl font-bold text-white">
-                  {users.filter(u => getRoleName(u) === 'collector').length}
+                  {displayedUsers.filter(u => {
+                    const r = getRoleName(u);
+                    return r === 'resident' || r === 'member';
+                  }).length}
                 </p>
               </div>
               <Package className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500" />
@@ -317,9 +353,9 @@ export default function UsersPage() {
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-xs sm:text-sm">Active Users</p>
+                <p className="text-gray-400 text-xs sm:text-sm">Active</p>
                 <p className="text-xl sm:text-2xl font-bold text-white">
-                  {users.filter(u => u.status === 'active').length}
+                  {displayedUsers.filter(u => u.status === 'active').length}
                 </p>
               </div>
               <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500" />
@@ -337,31 +373,71 @@ export default function UsersPage() {
             {/* Search */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">Search</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search by first name, last name, email, or phone..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                />
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by name, email, or phone..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyPress={handleSearchKeyPress}
+                    className="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                  />
+                </div>
+                <Button
+                  onClick={handleSearch}
+                  disabled={searching}
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                  {searching ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="h-4 w-4 mr-2" />
+                      Search
+                    </>
+                  )}
+                </Button>
+                {searchTerm && (
+                  <Button
+                    onClick={() => {
+                      setSearchTerm('');
+                      loadInitialUsers();
+                    }}
+                    variant="outline"
+                    className="bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+                  >
+                    Clear
+                  </Button>
+                )}
               </div>
             </div>
 
             {/* Role Filter */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">Role</label>
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <Select 
+                value={roleFilter} 
+                onValueChange={(value) => {
+                  setRoleFilter(value);
+                  // Auto-search when filter changes if search term exists
+                  if (searchTerm.trim()) {
+                    setTimeout(() => handleSearch(), 100);
+                  }
+                }}
+              >
                 <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                   <SelectValue placeholder="All roles" />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-700 border-gray-600">
                   <SelectItem value="all" className="text-white hover:bg-gray-600">All roles</SelectItem>
-                  {uniqueRoles.map(role => (
-                    <SelectItem key={role} value={role} className="text-white hover:bg-gray-600">
-                      {role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Unknown'}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="resident" className="text-white hover:bg-gray-600">Resident</SelectItem>
+                  <SelectItem value="member" className="text-white hover:bg-gray-600">Member</SelectItem>
+                  <SelectItem value="customer" className="text-white hover:bg-gray-600">Customer</SelectItem>
+                  <SelectItem value="user" className="text-white hover:bg-gray-600">User</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -369,7 +445,16 @@ export default function UsersPage() {
             {/* Status Filter */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">Status</label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select 
+                value={statusFilter} 
+                onValueChange={(value) => {
+                  setStatusFilter(value);
+                  // Auto-search when filter changes if search term exists
+                  if (searchTerm.trim()) {
+                    setTimeout(() => handleSearch(), 100);
+                  }
+                }}
+              >
                 <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
@@ -389,26 +474,31 @@ export default function UsersPage() {
           <div className="p-4 border-b border-gray-700">
             <div className="flex items-center space-x-2">
               <Users className="h-5 w-5 text-orange-500" />
-              <span className="text-white font-medium">All Users ({filteredUsers.length})</span>
+              <span className="text-white font-medium">
+                {searchTerm.trim() ? 'Search Results' : 'Users'} ({displayedUsers.length})
+              </span>
             </div>
             <p className="text-gray-400 text-sm mt-1">
-              Tap Collect to start a collection for that user
+              {searchTerm.trim() 
+                ? 'Tap Collect to start a collection for that user'
+                : 'Showing first 20 users. Use search to find specific users.'
+              }
             </p>
           </div>
           <div className="divide-y divide-gray-700">
-            {filteredUsers.length === 0 ? (
+            {displayedUsers.length === 0 ? (
               <div className="text-center py-10">
                 <Users className="h-10 w-10 text-gray-400 mx-auto mb-3" />
                 <h3 className="text-base font-medium text-white mb-1">No users found</h3>
                 <p className="text-gray-400 text-sm">
-                  {searchTerm || roleFilter !== 'all' || statusFilter !== 'all'
-                    ? 'Try adjusting your filters to see more results.'
+                  {searchTerm.trim()
+                    ? 'Try adjusting your search term or filters to see more results.'
                     : 'No users have been created yet.'
                   }
                 </p>
               </div>
             ) : (
-              filteredUsers.map((user) => (
+              displayedUsers.map((user) => (
                 <div key={user.id} className="p-3 sm:p-4 flex items-center justify-between hover:bg-gray-700/60 transition-colors">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
