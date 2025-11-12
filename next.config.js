@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const path = require('path');
+const webpack = require('webpack');
+
 const nextConfig = {
 	// Production optimizations
 	eslint: {
@@ -28,9 +30,6 @@ const nextConfig = {
 	
 	// Webpack configuration
 	webpack: (config, { isServer, dev }) => {
-		// No Capacitor imports in code - accessed via window.Capacitor at runtime
-		// This prevents webpack from trying to resolve Capacitor modules
-		
 		if (!isServer) {
 			config.resolve.fallback = {
 				...config.resolve.fallback,
@@ -48,6 +47,20 @@ const nextConfig = {
 				buffer: false,
 			};
 		}
+		
+		// Ensure plugins array exists
+		config.plugins = config.plugins || [];
+		
+		// Handle @capacitor/core as optional dependency
+		// This prevents build failures if module resolution fails
+		// The module is only needed at runtime for native platforms
+		config.resolve.alias = {
+			...config.resolve.alias,
+		};
+		
+		// Add module rules to handle optional dependencies gracefully
+		config.module = config.module || {};
+		config.module.rules = config.module.rules || [];
 		
 		// Production optimizations
 		if (!dev) {

@@ -60,14 +60,33 @@ export default function CollectionForm({ collectorId, residentId, onSuccess, onC
 
       // Load materials (non-blocking)
       try {
-        const { data: materialsData } = await supabase
+        // Try modern schema first
+        let query = supabase
           .from('materials')
-          .select('id, name, unit_price, rate_per_kg, current_rate')
+          .select('id, name, rate_per_kg, is_active')
+          .eq('is_active', true)
           .order('name');
+        let { data: materialsData, error: materialsError } = await query;
+
+        // Fallback to legacy schema if modern columns don't exist
+        if (materialsError && (materialsError.message?.includes('rate_per_kg') || materialsError.message?.includes('is_active') || materialsError.code === '42703')) {
+          console.warn('Falling back to legacy materials schema');
+          const alt = await supabase
+            .from('materials')
+            .select('id, name, current_rate')
+            .order('name');
+          materialsData = alt.data;
+          materialsError = alt.error;
+        }
+
+        if (materialsError) {
+          throw materialsError;
+        }
+
         const normalized = (materialsData || []).map((m: any) => ({
           id: String(m.id),
           name: m.name,
-          unit_price: Number(m.current_rate ?? m.unit_price ?? m.rate_per_kg ?? 0)
+          unit_price: Number(m.rate_per_kg ?? m.current_rate ?? 0)
         }));
         setMaterials(normalized as any);
       } catch (e) {

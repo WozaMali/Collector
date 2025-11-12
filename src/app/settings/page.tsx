@@ -88,13 +88,19 @@ export default function CollectorSettings() {
     }
   }, [user, authLoading, router]);
 
-  // Load user data and townships on component mount
+  // Load townships first, then user data (so township can be set correctly)
   useEffect(() => {
     if (user) {
-      loadUserData();
       loadTownships();
     }
   }, [user]);
+
+  // Load user data after townships are loaded
+  useEffect(() => {
+    if (user && townships.length > 0) {
+      loadUserData();
+    }
+  }, [user, townships]);
 
   const loadUserData = async () => {
     if (!user?.id) return;
@@ -143,8 +149,8 @@ export default function CollectorSettings() {
           employeeNumber: userData.employee_number || "Not assigned"
         });
 
-        // Set selected township if exists
-        if (userData.township_id) {
+        // Set selected township if exists (townships should be loaded by now)
+        if (userData.township_id && townships.length > 0) {
           const township = townships.find(t => t.id === userData.township_id);
           if (township) {
             setSelectedTownship(township);
@@ -161,9 +167,9 @@ export default function CollectorSettings() {
 
   const loadTownships = async () => {
     try {
-      // Use the same township_dropdown view as the Main App
+      // Use the same address_townships table as the Main App
       const { data, error } = await supabase
-        .from('township_dropdown')
+        .from('address_townships')
         .select('id, township_name, city, postal_code')
         .order('township_name');
 
@@ -184,26 +190,51 @@ export default function CollectorSettings() {
     }
   };
 
-  const handleTownshipChange = (townshipId: string) => {
+  const handleTownshipChange = async (townshipId: string) => {
     const township = townships.find(t => t.id === townshipId);
     setSelectedTownship(township || null);
     
+    // Reset subdivision when township changes
     setFormData(prev => ({
       ...prev,
       townshipId,
+      subdivision: "", // Reset subdivision
       city: township?.city || "",
       postalCode: township?.postal_code || ""
     }));
 
     // Load subdivisions for the selected township
-    loadSubdivisions(townshipId);
+    if (townshipId) {
+      await loadSubdivisions(townshipId);
+      
+      // If township info not found in local state, fetch from database (same as Main App)
+      if (!township) {
+        try {
+          const { data, error } = await supabase
+            .from('address_townships')
+            .select('postal_code, city')
+            .eq('id', townshipId)
+            .single();
+
+          if (!error && data) {
+            setFormData(prev => ({
+              ...prev,
+              city: data.city || "",
+              postalCode: data.postal_code || ""
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching township info:', error);
+        }
+      }
+    }
   };
 
   const loadSubdivisions = async (townshipId: string) => {
     try {
-      // Fetch subdivisions from the database like the Main App does
+      // Use the same address_subdivisions table as the Main App
       const { data, error } = await supabase
-        .from('subdivision_dropdown')
+        .from('address_subdivisions')
         .select('subdivision')
         .eq('area_id', townshipId)
         .order('subdivision');
@@ -285,34 +316,80 @@ export default function CollectorSettings() {
     setSuccess(false);
 
     try {
-      const { error } = await supabase
+      // Prepare update data - ensure area_id is set to township_id if not already set
+      const updateData: any = {
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        date_of_birth: formData.dateOfBirth || null,
+        street_addr: formData.streetAddress.trim(),
+        township_id: formData.townshipId || null,
+        subdivision: formData.subdivision.trim() || null,
+        suburb: formData.suburb.trim() || null,
+        city: formData.city.trim() || null,
+        postal_code: formData.postalCode.trim() || null,
+        // Set area_id to township_id if township is selected (same as Main App)
+        area_id: formData.townshipId || formData.areaId || null
+      };
+
+      console.log('Saving profile data:', updateData);
+      console.log('Updating user ID:', user.id);
+
+      const { data, error } = await supabase
         .from('users')
-        .update({
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          date_of_birth: formData.dateOfBirth,
-          street_addr: formData.streetAddress,
-          township_id: formData.townshipId,
-          subdivision: formData.subdivision,
-          suburb: formData.suburb,
-          city: formData.city,
-          postal_code: formData.postalCode,
-          area_id: formData.areaId
-        })
-        .eq('id', user.id);
+        .update(updateData)
+        .eq('id', user.id)
+        .select();
 
       if (error) {
+        console.error('Supabase update error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
         throw new Error(`Failed to update profile: ${error.message}`);
       }
 
-      setSuccess(true);
-      
-      // Hide success message after 3 seconds
-      setTimeout(() => {
-        setSuccess(false);
-      }, 3000);
+      if (data && data.length > 0) {
+        console.log('✅ Profile updated successfully in Supabase:', data[0]);
+        console.log('✅ Saved address fields:', {
+          street_addr: data[0].street_addr,
+          township_id: data[0].township_id,
+          subdivision: data[0].subdivision,
+          city: data[0].city,
+          postal_code: data[0].postal_code,
+          area_id: data[0].area_id
+        });
+        
+        // Verify the data was actually saved by fetching it back
+        const { data: verifyData, error: verifyError } = await supabase
+          .from('users')
+          .select('street_addr, township_id, subdivision, city, postal_code, area_id')
+          .eq('id', user.id)
+          .single();
+
+        if (verifyError) {
+          console.warn('⚠️ Could not verify saved data:', verifyError);
+        } else {
+          console.log('✅ Verified saved data in Supabase:', verifyData);
+        }
+
+        setSuccess(true);
+        
+        // Reload user data to reflect changes
+        await loadUserData();
+        
+        // Hide success message after 3 seconds
+        setTimeout(() => {
+          setSuccess(false);
+        }, 3000);
+      } else {
+        console.error('❌ No data returned from update - update may have failed silently');
+        throw new Error('No data returned from update. The update may have been blocked by database policies.');
+      }
 
     } catch (error: any) {
       console.error('Update error:', error);

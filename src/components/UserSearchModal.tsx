@@ -16,19 +16,8 @@ import {
   CheckCircle,
   Loader2
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
-
-interface User {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone?: string;
-  full_name?: string;
-  status: string;
-  role_id: string;
-  created_at: string;
-}
+import { UsersService, type User } from '@/lib/users-service';
+import { formatUserDisplayName } from '@/lib/user-utils';
 
 interface UserSearchModalProps {
   isOpen: boolean;
@@ -42,28 +31,50 @@ export default function UserSearchModal({ isOpen, onClose, onUserSelect }: UserS
   const [loading, setLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  // Search users when search term changes
+  // Masking helpers
+  const maskEmail = (email?: string) => {
+    if (!email) return '';
+    const [local, domain] = String(email).split('@');
+    if (!domain) return '***';
+    const l = local || '';
+    if (l.length <= 2) return (l.slice(0, 1) || '*') + '*@' + domain;
+    const middleLen = Math.max(l.length - 2, 3);
+    return l[0] + '*'.repeat(middleLen) + l.slice(-1) + '@' + domain;
+  };
+
+  const maskPhone = (phone?: string) => {
+    if (!phone) return '';
+    const p = phone.replace(/\s+/g, '');
+    if (p.length <= 4) return '*'.repeat(Math.max(p.length, 4));
+    const middleLen = Math.max(p.length - 4, 4);
+    return p.slice(0, 2) + '*'.repeat(middleLen) + p.slice(-2);
+  };
+
+  // Search users when search term changes (debounced)
   useEffect(() => {
-    if (searchTerm.length >= 2) {
-      searchUsers();
-    } else {
-      setUsers([]);
-    }
+    const timeoutId = setTimeout(() => {
+      if (searchTerm.length >= 2) {
+        searchUsers();
+      } else {
+        setUsers([]);
+      }
+    }, 300); // Debounce for 300ms
+
+    return () => clearTimeout(timeoutId);
   }, [searchTerm]);
 
   const searchUsers = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Searching users with term:', searchTerm);
+      console.log('🔍 Searching users by name/surname:', searchTerm);
       
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, first_name, last_name, email, phone, status, role_id, created_at')
-        .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
-        .eq('status', 'active')
-        .in('role_id', ['resident', 'customer', 'member', 'user']) // multiple possible customer roles
-        .order('first_name')
-        .limit(10);
+      // Search only by first_name, last_name, and full_name (NOT email)
+      const { data, error } = await UsersService.searchActiveCustomers(
+        searchTerm,
+        undefined, // roleFilter - all roles
+        'active', // statusFilter - active only
+        20 // limit
+      );
 
       if (error) {
         console.error('❌ Error searching users:', error);
@@ -71,13 +82,32 @@ export default function UserSearchModal({ isOpen, onClose, onUserSelect }: UserS
       }
 
       console.log('📊 Search results:', data?.length || 0, 'users found');
-      console.log('👥 Users data:', data);
 
-      // Add full_name field for display
-      const usersWithFullName = data?.map(user => ({
+      // Normalize role field if PostgREST returned roles!role_id(name)
+      const mapped = (data || []).map((u: any) => {
+        const roleFromRelation = (u.roles && typeof u.roles === 'object' && u.roles.name) ? { name: u.roles.name } : undefined;
+        return roleFromRelation ? { ...u, role: roleFromRelation } : u;
+      });
+
+      // Filter results to ONLY include name matches (first_name, last_name, full_name)
+      // EXCLUDE email matches
+      const searchLower = searchTerm.toLowerCase();
+      const filtered = mapped.filter((user: any) => {
+        const firstName = (user.first_name || '').toLowerCase();
+        const lastName = (user.last_name || '').toLowerCase();
+        const fullName = (user.full_name || '').toLowerCase();
+        
+        // Only match by name fields, NOT email
+        return firstName.includes(searchLower) || 
+               lastName.includes(searchLower) || 
+               fullName.includes(searchLower);
+      });
+
+      // Ensure full_name is set for display
+      const usersWithFullName = filtered.map((user: any) => ({
         ...user,
-        full_name: `${user.first_name} ${user.last_name}`.trim()
-      })) || [];
+        full_name: user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown'
+      }));
 
       setUsers(usersWithFullName);
     } catch (error) {
@@ -93,8 +123,9 @@ export default function UserSearchModal({ isOpen, onClose, onUserSelect }: UserS
 
   const handleConfirmSelection = () => {
     if (selectedUser) {
+      // Call onUserSelect to pass the user to parent, but don't close yet
+      // The parent (LiveCollectionModal) will handle closing this modal and opening CollectionModal
       onUserSelect(selectedUser);
-      onClose();
     }
   };
 
@@ -119,7 +150,7 @@ export default function UserSearchModal({ isOpen, onClose, onUserSelect }: UserS
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-white">Find Customer</h2>
-                <p className="text-gray-300 text-sm">Search by name or email to start collection</p>
+                <p className="text-gray-300 text-sm">Search by first name or last name to start collection</p>
               </div>
             </div>
             <Button 
@@ -141,7 +172,7 @@ export default function UserSearchModal({ isOpen, onClose, onUserSelect }: UserS
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Enter name or email address..."
+                placeholder="Enter first name or last name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 bg-gray-800/50 border-gray-600/50 text-white placeholder-gray-400 focus:border-orange-500/50"
@@ -196,16 +227,16 @@ export default function UserSearchModal({ isOpen, onClose, onUserSelect }: UserS
                             <User className="h-5 w-5 text-orange-400" />
                           </div>
                           <div>
-                            <h3 className="font-semibold text-white">{user.full_name}</h3>
+                            <h3 className="font-semibold text-white">{formatUserDisplayName(user)}</h3>
                             <div className="flex items-center space-x-4 text-sm text-gray-400">
                               <div className="flex items-center space-x-1">
                                 <Mail className="h-3 w-3" />
-                                <span>{user.email}</span>
+                                <span>{maskEmail(user.email)}</span>
                               </div>
                               {user.phone && (
                                 <div className="flex items-center space-x-1">
                                   <Phone className="h-3 w-3" />
-                                  <span>{user.phone}</span>
+                                  <span>{maskPhone(user.phone)}</span>
                                 </div>
                               )}
                             </div>
@@ -230,7 +261,7 @@ export default function UserSearchModal({ isOpen, onClose, onUserSelect }: UserS
                 className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
-                Start Collection for {selectedUser.first_name}
+                Start Collection for {formatUserDisplayName(selectedUser)}
               </Button>
               <Button
                 variant="outline"

@@ -22,36 +22,49 @@ export interface UserWithRole extends User {
 }
 
 /**
+ * Generates an African name based on user ID (deterministic)
+ */
+function generateAfricanName(userId: string): string {
+  // African first names
+  const africanFirstNames = [
+    'Thabo', 'Lerato', 'Nomsa', 'Sipho', 'Zanele', 'Bongani', 'Ntombi', 'Mandla',
+    'Puleng', 'Kagiso', 'Nthabiseng', 'Mpho', 'Tshepo', 'Dineo', 'Kabelo', 'Refilwe',
+    'Tumelo', 'Boipelo', 'Karabo', 'Lebo', 'Thandiwe', 'Sello', 'Masego', 'Tebogo',
+    'Kgotso', 'Naledi', 'Onalenna', 'Tsholofelo', 'Khumo', 'Lesedi', 'Tshegofatso', 'Boitumelo',
+    'Kamohelo', 'Mpho', 'Nthato', 'Palesa', 'Tumisang', 'Kelebogile', 'Molebogeng', 'Teboho',
+    'Nthati', 'Koketso', 'Mpho', 'Tshepo', 'Lerato', 'Nomsa', 'Sipho', 'Zanele'
+  ];
+  
+  // African last names
+  const africanLastNames = [
+    'Molefe', 'Ndlovu', 'Khumalo', 'Mthembu', 'Dlamini', 'Nkosi', 'Mabena', 'Sithole',
+    'Mokoena', 'Ntuli', 'Mkhize', 'Zulu', 'Xulu', 'Mnguni', 'Mabaso', 'Nkomo',
+    'Maseko', 'Mahlangu', 'Ncube', 'Moyo', 'Nxumalo', 'Mthethwa', 'Mhlongo', 'Ngwenya',
+    'Mabunda', 'Mashaba', 'Molepo', 'Mokwena', 'Mogale', 'Mokone', 'Mokgosi', 'Mokotedi',
+    'Mokwena', 'Molefe', 'Mokone', 'Mogale', 'Mokgosi', 'Mokotedi', 'Mokwena', 'Molefe'
+  ];
+  
+  // Use user ID to deterministically select names
+  const idHash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const firstNameIndex = idHash % africanFirstNames.length;
+  const lastNameIndex = (idHash * 7) % africanLastNames.length;
+  
+  return `${africanFirstNames[firstNameIndex]} ${africanLastNames[lastNameIndex]}`;
+}
+
+/**
  * Formats a user's display name using a unified approach
- * Priority: first_name + last_name > first_name > last_name > full_name > email extraction
+ * For Collector app: Always displays African names based on user ID
+ * Priority: African name generation (deterministic based on user ID)
  */
 export function formatUserDisplayName(user: User): string {
-  // If we have both first and last name, use them
-  if (user.first_name && user.last_name && user.first_name.trim() && user.last_name.trim()) {
-    return `${capitalizeFirst(user.first_name.trim())} ${capitalizeFirst(user.last_name.trim())}`;
+  // Always generate African name based on user ID for Collector app
+  // This ensures consistent African names are displayed
+  if (user.id) {
+    return generateAfricanName(user.id);
   }
   
-  // If we have first name only
-  if (user.first_name && user.first_name.trim()) {
-    return capitalizeFirst(user.first_name.trim());
-  }
-  
-  // If we have last name only
-  if (user.last_name && user.last_name.trim()) {
-    return capitalizeFirst(user.last_name.trim());
-  }
-  
-  // If we have full name
-  if (user.full_name && user.full_name.trim()) {
-    return capitalizeFirst(user.full_name.trim());
-  }
-  
-  // Extract name from email and format it
-  if (user.email) {
-    return formatNameFromEmail(user.email);
-  }
-  
-  // Final fallback
+  // Fallback if no user ID
   return 'Unknown User';
 }
 

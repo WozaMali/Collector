@@ -25,29 +25,8 @@ export interface ResidentWithoutAddress extends Resident {
 export class ResidentService {
   static async getAllResidents(): Promise<Resident[]> {
     try {
-      // 1) Preferred: unified residents view (resident_id, full_name, email)
-      try {
-        const { data, error } = await supabase
-          .from('residents_view')
-          .select('resident_id, full_name, email')
-          .order('full_name', { ascending: true })
-          .limit(1000);
-        if (!error && Array.isArray(data) && data.length > 0) {
-          return data.map((r: any) => ({
-            id: String(r.resident_id),
-            name: r.full_name || r.email || 'Resident',
-            phone: undefined,
-            email: r.email || undefined,
-            area_id: '',
-            township: '',
-            address: undefined,
-            hasAddress: false,
-            created_at: new Date().toISOString()
-          }));
-        }
-      } catch (e) {
-        // continue to fallback
-      }
+      // Skip residents_view as it may not exist - go directly to users table fallback
+      // 1) Preferred: users table (resident/member/customer roles)
 
       // 2) Fallback: users table (resident/member/customer roles)
       try {
@@ -57,20 +36,13 @@ export class ResidentService {
           .in('name', ['resident', 'member', 'customer']);
 
         const roleIds = (rolesData || []).map(r => r.id);
-        const orParts = [
-          'role.eq.resident',
-          'role.eq.member',
-          'role.eq.customer',
-          'role_name.eq.resident',
-          'role_name.eq.member',
-          'role_name.eq.customer',
-          ...roleIds.map((id: string) => `role_id.eq.${id}`)
-        ];
-
+        
+        // Use role_id IN filter instead of or() with non-existent columns
         const { data, error } = await supabase
           .from('users')
           .select('id, first_name, last_name, email, created_at')
-          .or(orParts.join(','))
+          .in('role_id', roleIds.length > 0 ? roleIds : [])
+          .eq('status', 'active')
           .order('first_name', { ascending: true })
           .limit(1000);
 
@@ -108,17 +80,9 @@ export class ResidentService {
         .in('name', ['resident', 'member', 'customer']);
 
       const roleIds = (rolesData || []).map(r => r.id);
-      const orParts = [
-        'role.eq.resident',
-        'role.eq.member',
-        'role.eq.customer',
-        'role_name.eq.resident',
-        'role_name.eq.member',
-        'role_name.eq.customer',
-        ...roleIds.map((id: string) => `role_id.eq.${id}`)
-      ];
-
-      const { data, error } = await supabase
+      
+      // Use role_id IN filter instead of or() with non-existent columns
+      let query = supabase
         .from('users')
         .select(`
           id,
@@ -135,8 +99,14 @@ export class ResidentService {
           areas!township_id(name)
         `)
         .eq('township_id', townshipId)
-        .or(orParts.join(','))
-        .order('first_name');
+        .eq('status', 'active');
+      
+      // Only add role filter if we have role IDs
+      if (roleIds.length > 0) {
+        query = query.in('role_id', roleIds);
+      }
+
+      const { data, error } = await query.order('first_name');
 
       if (error) throw error;
 

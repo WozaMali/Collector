@@ -37,7 +37,7 @@ export default function RouteTransition() {
     >
       <div className="collector-splash-content">
         <div className="collector-splash-logo">
-          <img src="/Collector Icon.png" alt="Woza Mali Collector Logo" />
+          <img src="/W Green.png.png" alt="Woza Mali Collector Logo" />
         </div>
         <h1 className="collector-splash-app-name">Woza Mali</h1>
         <p className="collector-splash-tagline">Collector App</p>

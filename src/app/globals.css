@@ -104,37 +104,22 @@ body {
   align-items: center;
   justify-content: center;
   animation: collectorPulse 2.5s ease-in-out infinite;
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
-  border-radius: 32px;
-  padding: 2rem;
-  box-shadow: 
-    0 0 60px rgba(34, 197, 94, 0.3),
-    0 8px 32px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(34, 197, 94, 0.2);
   position: relative;
-}
-
-.collector-splash-logo::before {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: 34px;
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.4), rgba(16, 185, 129, 0.2), rgba(34, 197, 94, 0.4));
-  background-size: 200% 200%;
-  animation: collectorShimmer 3s ease-in-out infinite;
-  z-index: -1;
-  opacity: 0.6;
+  /* Use the image as a mask to remove black background */
+  background: #22c55e;
+  -webkit-mask-image: url('/W Green.png.png');
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-image: url('/W Green.png.png');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  filter: drop-shadow(0 0 40px rgba(34, 197, 94, 0.6)) drop-shadow(0 0 80px rgba(34, 197, 94, 0.4)) drop-shadow(0 0 120px rgba(34, 197, 94, 0.2));
 }
 
 .collector-splash-logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 8px 16px rgba(34, 197, 94, 0.5));
-  position: relative;
-  z-index: 1;
+  display: none;
 }
 
 .collector-splash-app-name {
