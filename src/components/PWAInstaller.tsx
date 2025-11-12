@@ -13,7 +13,7 @@ export default function PWAInstaller() {
           // Check if we're on native platform (Capacitor) - skip SW on native
           // Use optional import to avoid build errors if Capacitor is not available
           try {
-            // Check if Capacitor is available via window object first (safer)
+            // Check if Capacitor is available via window object first (safer for build)
             if (typeof window !== 'undefined' && (window as any).Capacitor) {
               const Capacitor = (window as any).Capacitor;
               if (Capacitor.isNativePlatform && Capacitor.isNativePlatform()) {
@@ -27,9 +27,11 @@ export default function PWAInstaller() {
               }
             }
             // Try dynamic import only if window.Capacitor check fails
+            // @capacitor/core is now in package.json, so this should resolve correctly
             try {
-              const { Capacitor } = await import('@capacitor/core');
-              if (Capacitor.isNativePlatform()) {
+              const capacitorModule = await import('@capacitor/core');
+              const Capacitor = capacitorModule?.Capacitor;
+              if (Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) {
                 const registrations = await navigator.serviceWorker.getRegistrations();
                 for (const registration of registrations) {
                   await registration.unregister();
@@ -39,6 +41,7 @@ export default function PWAInstaller() {
               }
             } catch (importError) {
               // Capacitor not available - this is fine for web PWA
+              // The module might not be installed or we're running in a web environment
               console.log('Capacitor not available (web PWA mode)');
             }
           } catch (error) {
