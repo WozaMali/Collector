@@ -50,7 +50,23 @@ export class UsersService {
       const { data, error } = await supabase
         .from('users')
         .select(`
-          *,
+          id,
+          email,
+          full_name,
+          first_name,
+          last_name,
+          phone,
+          role_id,
+          status,
+          created_at,
+          updated_at,
+          street_addr,
+          township_id,
+          subdivision,
+          suburb,
+          city,
+          postal_code,
+          area_id,
           role:roles(*)
         `)
         .order('created_at', { ascending: false });
