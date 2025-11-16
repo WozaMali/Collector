@@ -288,7 +288,9 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
       const collectionData = {
         customer_id: user.id,
         collector_id: collector.id,
-        customer_name: user.full_name || `${user.first_name} ${user.last_name}`,
+        customer_name: (user.first_name && user.last_name) 
+          ? `${user.first_name} ${user.last_name}`.trim()
+          : user.full_name || 'Unknown User',
         customer_email: user.email,
         collector_name: `${collector.first_name || ''} ${collector.last_name || ''}`.trim(),
         collector_email: collector.email,
@@ -750,7 +752,12 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                 <div className="grid grid-cols-2 gap-2">
                   <div className="p-2 bg-gray-800/30 rounded-lg">
                     <span className="block text-xs font-medium text-gray-300">Full Name</span>
-                    <p className="text-white text-sm font-semibold truncate">{user.full_name || `${user.first_name} ${user.last_name}`}</p>
+                    <p className="text-white text-sm font-semibold truncate">
+                      {/* Always prioritize first_name and last_name from users table (saved during Sign Up/Profile Completion) */}
+                      {user.first_name && user.last_name 
+                        ? `${user.first_name} ${user.last_name}`.trim()
+                        : user.full_name || 'Unknown User'}
+                    </p>
                   </div>
                   <div className="p-2 bg-gray-800/30 rounded-lg">
                     <span className="block text-xs font-medium text-gray-300">Phone Number</span>

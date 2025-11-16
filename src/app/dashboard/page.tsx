@@ -693,7 +693,10 @@ export default function DashboardPage() {
                         </div>
                         <div className="min-w-0">
                           <div className="font-medium text-white text-sm sm:text-base truncate">
-                            {user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email?.split('@')[0] || 'Unknown User'}
+                            {/* Always prioritize first_name and last_name from users table (saved during Sign Up/Profile Completion) */}
+                            {user.first_name && user.last_name 
+                              ? `${user.first_name} ${user.last_name}`.trim()
+                              : user.full_name || user.email?.split('@')[0] || 'Unknown User'}
                           </div>
                           <div className="text-xs sm:text-sm text-gray-400 truncate">
                             {user.email ? user.email.replace(/(.{2})(.*)(@.*)/, '$1***$3') : ''}

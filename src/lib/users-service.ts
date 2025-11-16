@@ -266,7 +266,9 @@ export class UsersService {
           .limit(limit);
 
         if (term) {
-          query = query.or(`full_name.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
+          // Search ONLY by name fields (first_name, last_name, full_name) - NOT email or phone
+          // This ensures we match the correct user based on their actual name from Sign Up/Profile Completion
+          query = query.or(`full_name.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%`);
         }
 
         const { data, error } = await query;
@@ -317,9 +319,10 @@ export class UsersService {
         .order('created_at', { ascending: false })
         .limit(limit);
 
-      // Apply search filter
+      // Apply search filter - ONLY search by name fields (first_name, last_name, full_name)
+      // This ensures we match the correct user based on their actual name from Sign Up/Profile Completion
       if (term) {
-        query = query.or(`full_name.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
+        query = query.or(`full_name.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%`);
       }
 
       const { data, error } = await query;
@@ -560,13 +563,12 @@ export class UsersService {
 
       const orParts: string[] = [];
       if (term.length > 0) {
-        // Single-field matches
+        // Search ONLY by name fields (first_name, last_name, full_name) - NOT email or phone
+        // This ensures we match the correct user based on their actual name from Sign Up/Profile Completion
         orParts.push(
           `full_name.ilike.%${term}%`,
           `first_name.ilike.%${term}%`,
-          `last_name.ilike.%${term}%`,
-          `email.ilike.%${term}%`,
-          `phone.ilike.%${term}%`
+          `last_name.ilike.%${term}%`
         );
       }
 
