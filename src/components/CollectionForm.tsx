@@ -193,16 +193,31 @@ export default function CollectionForm({ collectorId, residentId, onSuccess, onC
         .single();
       if (ucErr || !uc?.id) throw ucErr || new Error('Failed to create collection');
 
-      // Insert collection materials
-      const rows = selected.map(m => ({
-        collection_id: uc.id,
-        material_id: m.material_id,
-        quantity: Number(m.weight_kg),
-        unit_price: (Number((m as any).unit_price) > 0 ? Number((m as any).unit_price) : Number(idToMat.get(m.material_id)?.unit_price || 0))
-      }));
+      // Insert collection materials - ensure material_id is required
+      const rows = selected
+        .filter(m => {
+          if (!m.material_id) {
+            console.error('Material missing material_id:', m);
+            return false;
+          }
+          return true;
+        })
+        .map(m => {
+          if (!m.material_id) {
+            throw new Error('Material ID is required for all materials');
+          }
+          return {
+            collection_id: uc.id,
+            material_id: m.material_id, // Required - must exist
+            quantity: Number(m.weight_kg),
+            unit_price: (Number((m as any).unit_price) > 0 ? Number((m as any).unit_price) : Number(idToMat.get(m.material_id)?.unit_price || 0))
+          };
+        });
       if (rows.length > 0) {
         const { error: cmErr } = await supabase.from('collection_materials').insert(rows);
         if (cmErr) throw cmErr;
+      } else {
+        throw new Error('No valid materials with material_id to save');
       }
 
       // Save photos if URLs exist (best effort)

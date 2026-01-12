@@ -58,9 +58,22 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 ### 3. Database Setup
-Run the SQL scripts in your Supabase SQL editor:
-- `schemas/00-install-all.sql` - Install the complete schema
-- `create-test-collector.sql` - Create test accounts (optional)
+Run the SQL scripts in your Supabase SQL editor (in order):
+
+1. **Install Base Schema**
+   - `schemas/00-install-all.sql` - Install the complete schema
+
+2. **Setup Address Fields (REQUIRED for Collector App)**
+   - `schemas/ensure_address_fields_in_users.sql` - **REQUIRED** 
+     - Ensures address fields (`street_addr`, `suburb`, `city`, `postal_code`) exist in users table
+     - Sets up RLS policies allowing collectors to read user addresses for pickup scheduling
+     - Creates indexes for performance on address queries
+     - Safe to run multiple times (idempotent)
+
+3. **Create Test Accounts (Optional)**
+   - `create-test-collector.sql` - Create test collector accounts for development
+
+> 📖 **For detailed database setup instructions, see [DATABASE_SETUP.md](./DATABASE_SETUP.md)**
 
 ### 4. Create Test User
 1. Go to Supabase Dashboard > Authentication > Users

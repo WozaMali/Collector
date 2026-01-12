@@ -380,12 +380,15 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
         setUploadingPhotos(false);
       }
 
-      // Insert collection materials
+      // Insert collection materials - ensure material_id is required
       const materialsToInsert = validMaterials.map(material => {
         const selectedMaterial = materials.find(m => m.name === material.materialName);
+        if (!selectedMaterial || !selectedMaterial.id) {
+          throw new Error(`Material "${material.materialName}" not found in materials list. Please select a valid material.`);
+        }
         return {
           collection_id: collection.id,
-          material_id: selectedMaterial?.id,
+          material_id: selectedMaterial.id, // Required - must exist
           quantity: material.kilograms,
           unit_price: material.unitPrice
         };

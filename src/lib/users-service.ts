@@ -521,7 +521,15 @@ export class UsersService {
           role_id,
           status,
           created_at,
-          updated_at
+          updated_at,
+          street_addr,
+          township_id,
+          subdivision,
+          suburb,
+          city,
+          postal_code,
+          area_id,
+          role:roles(*)
         `)
         .eq('id', id)
         .single();
@@ -558,7 +566,15 @@ export class UsersService {
           role_id,
           status,
           created_at,
-          updated_at
+          updated_at,
+          street_addr,
+          township_id,
+          subdivision,
+          suburb,
+          city,
+          postal_code,
+          area_id,
+          role:roles(*)
         `);
 
       const orParts: string[] = [];

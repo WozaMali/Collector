@@ -24,6 +24,13 @@ You need to run one of these SQL scripts in your Supabase SQL Editor:
 -- Run the contents of fix-collector-permissions.sql
 ```
 
+**Option C: Address Fields & RLS Setup (Required for address access)**
+```sql
+-- Run the contents of schemas/ensure_address_fields_in_users.sql
+-- This ensures address fields exist and sets up RLS policies for collectors
+-- to access user addresses for pickup scheduling
+```
+
 ### 2. How to Run the Script
 1. Go to your Supabase Dashboard
 2. Navigate to SQL Editor

@@ -463,13 +463,26 @@ export default function CollectorPickupsPage() {
 
       const collectionId = collection.id;
 
-      // Insert collection materials
-      const materialsRows = selectedMaterials.map((m) => ({
-        collection_id: collectionId,
-        material_id: m.materialId,
-        quantity: Number(m.kg),
-        unit_price: idToRate.get(String(m.materialId)) || 0
-      }));
+      // Insert collection materials - ensure material_id is required
+      const materialsRows = selectedMaterials
+        .filter((m) => {
+          if (!m.materialId) {
+            console.error('Material missing material_id:', m);
+            return false;
+          }
+          return true;
+        })
+        .map((m) => {
+          if (!m.materialId) {
+            throw new Error('Material ID is required for all materials');
+          }
+          return {
+            collection_id: collectionId,
+            material_id: m.materialId, // Required - must exist
+            quantity: Number(m.kg),
+            unit_price: idToRate.get(String(m.materialId)) || 0
+          };
+        });
 
       if (materialsRows.length > 0) {
         const { error: itemsErr } = await supabase
@@ -477,8 +490,11 @@ export default function CollectorPickupsPage() {
           .insert(materialsRows);
         if (itemsErr) {
           console.error('Insert materials error:', itemsErr);
+          toast.error(`Failed to save materials: ${itemsErr.message}`);
           // Continue; collection exists
         }
+      } else {
+        toast.error('No valid materials with material_id to save');
       }
 
       toast.success('Collection created');

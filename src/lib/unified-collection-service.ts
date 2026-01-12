@@ -168,7 +168,48 @@ export const unifiedCollectionService = {
         }
       }
       
-      // Validate materials data
+      // Validate materials data and look up material_id from materials table
+      // First, fetch all active materials to map names to IDs
+      // Try modern schema first (with is_active and rate_per_kg)
+      let allMaterials: any[] | null = null;
+      let materialsFetchError: any = null;
+      
+      let query = supabase
+        .from('materials')
+        .select('id, name, rate_per_kg, is_active')
+        .eq('is_active', true);
+      
+      let { data, error } = await query;
+      
+      // If column names differ, fall back to legacy schema (current_rate/no is_active)
+      if (error && (String(error.message).includes('rate_per_kg') || String(error.message).includes('is_active') || error.code === '42703')) {
+        console.warn('↩️ Falling back to legacy materials schema (current_rate/no is_active)');
+        const alt = await supabase
+          .from('materials')
+          .select('id, name, current_rate')
+          .order('name');
+        data = alt.data as any[] | null;
+        error = alt.error as any;
+      }
+      
+      allMaterials = data;
+      materialsFetchError = error;
+      
+      if (materialsFetchError) {
+        console.warn('⚠️ Could not fetch materials for ID lookup:', materialsFetchError);
+      }
+      
+      // Create a map of material name (lowercase) to material ID
+      const materialNameToIdMap = new Map<string, string>();
+      if (allMaterials) {
+        allMaterials.forEach(m => {
+          if (m.name) {
+            materialNameToIdMap.set(m.name.toLowerCase().trim(), m.id);
+          }
+        });
+      }
+      
+      // Validate materials data and ensure material_id can be found
       for (let i = 0; i < data.materials.length; i++) {
         const material = data.materials[i];
         if (!material.material_name) {
@@ -179,6 +220,11 @@ export const unifiedCollectionService = {
         }
         if (material.unit_price === undefined || material.unit_price === null || material.unit_price < 0) {
           throw new Error(`Material ${i + 1}: Unit price must be 0 or greater`);
+        }
+        // Validate that material exists in materials table
+        const materialId = materialNameToIdMap.get(material.material_name.toLowerCase().trim());
+        if (!materialId) {
+          throw new Error(`Material ${i + 1}: Material "${material.material_name}" not found in materials table. Please use a valid material name.`);
         }
       }
       
@@ -242,18 +288,26 @@ export const unifiedCollectionService = {
         console.log('✅ Unified collection created:', collection);
         
         // Create material entries in batch to reduce database calls
+        // Include material_id (required) - look it up from the map we created earlier
         if (data.materials.length > 0) {
-          const materialInserts = data.materials.map(material => ({
-            collection_id: collection.id,
-            material_name: material.material_name,
-            material_category: material.material_category || 'general',
-            quantity: material.quantity,
-            unit: material.unit,
-            unit_price: material.unit_price,
-            quality_rating: material.quality_rating,
-            contamination_pct: material.contamination_pct || 0,
-            condition_notes: material.condition_notes
-          }));
+          const materialInserts = data.materials.map(material => {
+            const materialId = materialNameToIdMap.get(material.material_name.toLowerCase().trim());
+            if (!materialId) {
+              throw new Error(`Material "${material.material_name}" not found in materials table. This should have been caught during validation.`);
+            }
+            return {
+              collection_id: collection.id,
+              material_id: materialId, // Required - must exist
+              material_name: material.material_name,
+              material_category: material.material_category || 'general',
+              quantity: material.quantity,
+              unit: material.unit,
+              unit_price: material.unit_price,
+              quality_rating: material.quality_rating,
+              contamination_pct: material.contamination_pct || 0,
+              condition_notes: material.condition_notes
+            };
+          });
           
           const { data: materials, error: materialsError } = await supabase
             .from('collection_materials')
@@ -262,9 +316,9 @@ export const unifiedCollectionService = {
           
           if (materialsError) {
             console.error('❌ Error creating collection materials:', materialsError);
-            // Don't throw here - collection was created successfully
+            throw materialsError; // Throw error since material_id is required
           } else {
-            console.log('✅ Collection materials created:', materials);
+            console.log('✅ Collection materials created with material_id:', materials);
           }
         }
         

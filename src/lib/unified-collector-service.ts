@@ -156,20 +156,48 @@ export class UnifiedCollectorService {
   // ============================================================================
   static async createCollection(collectionData: CollectionData): Promise<{ data: any | null; error: any }> {
     try {
-      // First, create the collection record
+      // First, fetch all materials to map names to IDs
+      const { data: allMaterials, error: materialsError } = await supabase
+        .from('materials')
+        .select('id, name');
+
+      if (materialsError) {
+        console.error('Error fetching materials:', materialsError);
+        return { data: null, error: materialsError };
+      }
+
+      // Create a map of material names to IDs
+      const materialMap = new Map<string, string>();
+      (allMaterials || []).forEach((mat: { id: string; name: string }) => {
+        materialMap.set(mat.name.toLowerCase().trim(), mat.id);
+      });
+
+      // Calculate total weight
+      const totalWeight = collectionData.materials.reduce((sum, m) => sum + m.quantity, 0);
       const primaryMaterialName = (collectionData.materials?.[0]?.material_name || '').trim();
+
+      // Build collection insert data
+      const collectionInsert: any = {
+        user_id: collectionData.customer_id,
+        collector_id: collectionData.collector_id,
+        pickup_address_id: collectionData.pickup_address_id,
+        status: collectionData.status
+      };
+
+      // Add optional fields
+      if (collectionData.customer_notes) {
+        collectionInsert.notes = collectionData.customer_notes;
+      }
+
+      // Add material_type and weight_kg for backward compatibility with office app
+      // These columns may exist in some schema versions
+      collectionInsert.material_type = primaryMaterialName || null;
+      collectionInsert.weight_kg = totalWeight;
+
+      // Create the collection record
       const { data: collection, error: collectionError } = await supabase
         .from('collections')
-        .insert({
-          user_id: collectionData.customer_id,
-          collector_id: collectionData.collector_id,
-          pickup_address_id: collectionData.pickup_address_id,
-          // Use the first selected material name for backward compatibility with reports
-          material_type: primaryMaterialName || null,
-          weight_kg: collectionData.materials.reduce((sum, m) => sum + m.quantity, 0),
-          status: collectionData.status,
-          notes: collectionData.customer_notes
-        })
+        .insert(collectionInsert)
         .select('id')
         .single();
 
@@ -178,17 +206,33 @@ export class UnifiedCollectorService {
         return { data: null, error: collectionError };
       }
 
-      // Then, create pickup items for each material
+      // Then, create pickup items for each material with correct material IDs
       if (collection && collectionData.materials.length > 0) {
-        const pickupItems = collectionData.materials.map(material => ({
-          pickup_id: collection.id,
-          material_id: material.material_name, // This should be the actual material ID
-          quantity: material.quantity,
-          unit_price: material.unit_price,
-          total_price: material.quantity * material.unit_price,
-          quality_rating: null,
-          notes: null
-        }));
+        const pickupItems = collectionData.materials
+          .map(material => {
+            const materialName = material.material_name.trim();
+            const materialId = materialMap.get(materialName.toLowerCase());
+
+            if (!materialId) {
+              console.error(`Material not found: ${materialName}`);
+              return null;
+            }
+
+            return {
+              pickup_id: collection.id,
+              material_id: materialId, // Now using the actual UUID
+              quantity: material.quantity,
+              unit_price: material.unit_price,
+              total_price: material.quantity * material.unit_price,
+              notes: null
+            };
+          })
+          .filter((item): item is NonNullable<typeof item> => item !== null);
+
+        if (pickupItems.length === 0) {
+          console.error('No valid pickup items to insert - all materials were invalid');
+          return { data: null, error: new Error('No valid materials found') };
+        }
 
         const { error: itemsError } = await supabase
           .from('pickup_items')

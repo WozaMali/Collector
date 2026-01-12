@@ -93,6 +93,18 @@ Run the comprehensive fix script in your Supabase SQL Editor:
 \i fix-all-issues-comprehensive.sql
 ```
 
+### Step 1b: Setup Address Fields (REQUIRED)
+**IMPORTANT**: Run this script to ensure address fields exist and RLS policies are configured for collectors:
+```sql
+-- Run this in Supabase SQL Editor
+-- Location: schemas/ensure_address_fields_in_users.sql
+-- This script:
+-- - Adds address fields (street_addr, suburb, city, postal_code) to users table
+-- - Sets up RLS policies allowing collectors to read user addresses
+-- - Creates performance indexes
+-- - Safe to run multiple times (idempotent)
+```
+
 ### Step 2: Update Role System to Use 'Member'
 Run the member update script:
 ```sql
