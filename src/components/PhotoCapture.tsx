@@ -147,14 +147,14 @@ export default function PhotoCapture({
   };
 
   return (
-    <Card className="bg-gray-700 border-gray-600">
+    <Card className="app-card">
       <CardHeader>
         <CardTitle className="flex items-center justify-between text-white">
           <div className="flex items-center space-x-2">
             <span className="text-2xl">{getTypeIcon()}</span>
             <span>{getTypeLabel()} Photo</span>
             {isOptional && (
-              <Badge variant="secondary" className="bg-gray-600 text-gray-300">
+              <Badge variant="secondary" className="app-card-inner-subtle text-gray-300 border-0">
                 Optional
               </Badge>
             )}
@@ -170,7 +170,7 @@ export default function PhotoCapture({
             </Button>
           )}
         </CardTitle>
-        <CardDescription className="text-gray-400">
+        <CardDescription className="text-gray-400 text-sm">
           {type === 'material' 
             ? 'Take a photo of the collected materials'
             : 'Take a photo of the scale showing the weight (optional)'
@@ -191,10 +191,10 @@ export default function PhotoCapture({
               <img
                 src={capturedPhoto}
                 alt={`${getTypeLabel()} photo`}
-                className="w-full h-64 object-cover rounded-lg border border-gray-600"
+                className="w-full h-64 object-cover rounded-lg border border-[var(--app-border)]"
               />
               <div className="absolute top-2 right-2">
-                <Badge className="bg-green-600 text-white">
+                <Badge className="bg-[var(--app-accent)] text-white border-0">
                   <CheckCircle className="h-3 w-3 mr-1" />
                   Captured
                 </Badge>
@@ -208,7 +208,7 @@ export default function PhotoCapture({
                   removePhoto();
                   startCamera();
                 }}
-                className="border-gray-500 text-gray-300 hover:bg-gray-600 hover:text-white"
+                className="border-[var(--app-border)] text-gray-300 hover:brightness-110 hover:text-white"
               >
                 <RotateCcw className="h-4 w-4 mr-2" />
                 Retake
@@ -222,7 +222,7 @@ export default function PhotoCapture({
                 <div className="relative">
                   <video
                     ref={videoRef}
-                    className="w-full h-64 object-cover rounded-lg border border-gray-600"
+                    className="w-full h-64 object-cover rounded-lg border border-[var(--app-border)]"
                     autoPlay
                     playsInline
                     muted
@@ -232,7 +232,7 @@ export default function PhotoCapture({
                 <div className="flex space-x-2">
                   <Button
                     onClick={capturePhoto}
-                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                    className="app-btn-primary"
                   >
                     <Camera className="h-4 w-4 mr-2" />
                     Capture Photo
@@ -240,7 +240,7 @@ export default function PhotoCapture({
                   <Button
                     variant="outline"
                     onClick={stopCamera}
-                    className="border-gray-500 text-gray-300 hover:bg-gray-600 hover:text-white"
+                    className="border-[var(--app-border)] text-gray-300 hover:brightness-110 hover:text-white"
                   >
                     Cancel
                   </Button>
@@ -248,7 +248,7 @@ export default function PhotoCapture({
               </div>
             ) : (
               <div className="text-center space-y-4">
-                <div className="w-full h-64 border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center">
+                <div className="w-full h-64 border-2 border-dashed border-[var(--app-border)] rounded-lg flex flex-col items-center justify-center app-card-inner-subtle">
                   <Camera className="h-12 w-12 text-gray-400 mb-4" />
                   <p className="text-gray-400 mb-2">No photo captured</p>
                   <p className="text-sm text-gray-500">
@@ -261,7 +261,7 @@ export default function PhotoCapture({
                 <div className="flex space-x-2 justify-center">
                   <Button
                     onClick={startCamera}
-                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                    className="app-btn-primary"
                   >
                     <Camera className="h-4 w-4 mr-2" />
                     Take Photo

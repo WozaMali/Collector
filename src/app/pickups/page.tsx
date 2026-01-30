@@ -290,106 +290,26 @@ export default function CollectorPickupsPage() {
     try {
       setSearchingUsers(true);
       
-      // Get ALL active customers first, then filter client-side to show all matches
-      const { data: allCustomers, error: allError } = await UsersService.getActiveCustomers();
+      // Server-side search (scales to 2000+ users; no loading all rows)
+      const { data, error } = await UsersService.searchActiveCustomers(
+        userSearchTerm,
+        undefined,
+        'active',
+        100
+      );
       
-      if (allError) {
-        console.error('Error fetching all customers:', allError);
-        // Fallback to limited search
-        const { data, error } = await UsersService.searchActiveCustomers(
-          userSearchTerm,
-          undefined,
-          'active',
-          100
-        );
-        
-        if (error) {
-          console.error('Error searching users:', error);
-          return;
-        }
-        
-        const mapped = (data || []).map((u: any) => {
-          const roleFromRelation = (u.roles && typeof u.roles === 'object' && u.roles.name) ? { name: u.roles.name } : undefined;
-          return roleFromRelation ? { ...u, role: roleFromRelation } : u;
-        });
-        
-        const searchLower = userSearchTerm.toLowerCase().trim();
-        const filtered = mapped.filter((user: any) => {
-          const firstName = (user.first_name || '').toLowerCase().trim();
-          const lastName = (user.last_name || '').toLowerCase().trim();
-          const fullName = (user.full_name || '').toLowerCase().trim();
-          
-          return firstName.includes(searchLower) || 
-                 lastName.includes(searchLower) || 
-                 fullName.includes(searchLower);
-        });
-        
-        setSearchedUsers(filtered);
+      if (error) {
+        console.error('Error searching users:', error);
+        setSearchedUsers([]);
         return;
       }
-
-      // Normalize role field for all customers
-      const mapped = (allCustomers || []).map((u: any) => {
+      
+      const mapped = (data || []).map((u: any) => {
         const roleFromRelation = (u.roles && typeof u.roles === 'object' && u.roles.name) ? { name: u.roles.name } : undefined;
         return roleFromRelation ? { ...u, role: roleFromRelation } : u;
       });
-
-      // Filter to only name matches (not email) - search against actual database names
-      const searchLower = userSearchTerm.toLowerCase().trim();
-      const searchWords = searchLower.split(/\s+/).filter(w => w.length > 0);
       
-      const filtered = mapped.filter((user: any) => {
-        // Search against actual database names
-        const firstName = (user.first_name || '').toLowerCase().trim();
-        const lastName = (user.last_name || '').toLowerCase().trim();
-        const fullName = (user.full_name || '').toLowerCase().trim();
-        
-        // If single word search, match against first name or last name
-        if (searchWords.length === 1) {
-          const word = searchWords[0];
-          return firstName === word || 
-                 lastName === word ||
-                 firstName.startsWith(word) ||
-                 lastName.startsWith(word) ||
-                 firstName.includes(word) ||
-                 lastName.includes(word);
-        }
-        
-        // If multiple words, try to match as first name + last name (in any order)
-        if (searchWords.length >= 2) {
-          const word1 = searchWords[0];
-          const word2 = searchWords[1];
-          return (firstName.includes(word1) && lastName.includes(word2)) ||
-                 (firstName.includes(word2) && lastName.includes(word1)) ||
-                 (firstName === word1 && lastName === word2) ||
-                 (firstName === word2 && lastName === word1) ||
-                 fullName.includes(searchLower);
-        }
-        
-        // Fallback: match against any part of the name
-        return firstName.includes(searchLower) || 
-               lastName.includes(searchLower) || 
-               fullName.includes(searchLower);
-      });
-
-      // Sort results: exact matches first, then by first name
-      filtered.sort((a, b) => {
-        const aFirstName = (a.first_name || '').toLowerCase().trim();
-        const aLastName = (a.last_name || '').toLowerCase().trim();
-        const bFirstName = (b.first_name || '').toLowerCase().trim();
-        const bLastName = (b.last_name || '').toLowerCase().trim();
-        
-        // Exact matches first
-        const aExact = aFirstName === searchLower || aLastName === searchLower;
-        const bExact = bFirstName === searchLower || bLastName === searchLower;
-        if (aExact && !bExact) return -1;
-        if (!aExact && bExact) return 1;
-        
-        // Then by first name
-        return aFirstName.localeCompare(bFirstName);
-      });
-
-      setSearchedUsers(filtered);
+      setSearchedUsers(mapped);
     } catch (error) {
       console.error('Error searching users:', error);
     } finally {

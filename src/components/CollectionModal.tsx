@@ -456,7 +456,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
     return (
       <div className="space-y-6">
         {/* Materials */}
-        <Card className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 border border-gray-600/50 backdrop-blur-sm">
+        <Card className="app-card">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center justify-between text-white">
               <div className="flex items-center space-x-3">
@@ -469,7 +469,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                 variant="outline" 
                 size="sm" 
                 onClick={addMaterial} 
-                className="border-gray-500 text-gray-300 hover:bg-gray-600 hover:text-white transition-all duration-200"
+                className="border-[var(--app-border)] text-gray-300 hover:brightness-110 hover:text-white transition-all"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Material
@@ -479,7 +479,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
           <CardContent className="pt-0">
             <div className="space-y-4">
               {collectionMaterials.map((material, index) => (
-                <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-5 border border-gray-600/50 rounded-xl bg-gradient-to-r from-gray-800/30 to-gray-700/30 backdrop-blur-sm hover:border-gray-500/50 transition-all duration-200">
+                <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-5 rounded-xl app-card-inner hover:brightness-105 transition-all">
                   <div className="space-y-2">
                     <Label className="text-sm font-medium text-gray-300 flex items-center space-x-2">
                       <Package className="h-4 w-4" />
@@ -490,11 +490,11 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                       value={material.materialName} 
                       onValueChange={(value) => updateMaterial(index, 'materialName', value)}
                     >
-                      <SelectTrigger className="bg-gray-900/50 border-gray-600/50 text-white hover:border-gray-500/50 focus:border-orange-500/50 transition-all duration-200">
+                      <SelectTrigger className="app-input-bg border text-white hover:brightness-105 focus:border-emerald-500/50 transition-all">
                         <SelectValue placeholder="Select material" />
                       </SelectTrigger>
                       <SelectContent 
-                        className="bg-gray-900 border-gray-600/50 backdrop-blur-sm z-[100]" 
+                        className="app-card-inner border z-[100]" 
                         position="popper"
                         sideOffset={5}
                         avoidCollisions={true}
@@ -505,7 +505,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                             <SelectItem 
                               key={mat.id} 
                               value={mat.name} 
-                              className="text-white hover:bg-gray-700/50 focus:bg-gray-700/50 transition-all duration-200"
+                              className="text-white hover:brightness-110 focus:bg-[var(--app-surface-elevated)] transition-all"
                             >
                               <div className="flex items-center space-x-2">
                                 <Package className="h-4 w-4 text-green-400" />
@@ -533,7 +533,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                       placeholder="0.0"
                       value={material.kilograms || ''}
                       onChange={(e) => updateMaterial(index, 'kilograms', parseFloat(e.target.value) || 0)}
-                      className="bg-gray-900/50 border-gray-600/50 text-white placeholder-gray-400 focus:border-orange-500/50 transition-all duration-200"
+                      className="app-input-bg border text-white placeholder-gray-400 focus:border-emerald-500/50 transition-all"
                     />
                   </div>
                   <div className="space-y-2">
@@ -548,7 +548,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                       placeholder="0.00"
                       value={material.unitPrice || ''}
                       onChange={(e) => updateMaterial(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                      className="bg-gray-900/50 border-gray-600/50 text-white placeholder-gray-400 focus:border-orange-500/50 transition-all duration-200"
+                      className="app-input-bg border text-white placeholder-gray-400 focus:border-emerald-500/50 transition-all"
                     />
                   </div>
                   <div className="space-y-2">
@@ -575,7 +575,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
             </div>
 
             {/* Summary */}
-            <div className="mt-6 p-4 bg-gray-800/40 rounded-xl border border-gray-600/30">
+            <div className="mt-6 p-4 rounded-xl app-card-inner-subtle">
               <div className="flex items-center justify-between text-lg font-semibold text-white mb-3">
                 <span>Collection Summary</span>
                 <Badge variant="secondary" className="bg-orange-500/20 text-orange-300 border-orange-500/30">
@@ -583,7 +583,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                 </Badge>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center space-x-3 p-3 bg-gray-800/30 rounded-lg">
+                <div className="flex items-center space-x-3 p-3 rounded-lg app-card-inner-subtle">
                   <div className="p-2 bg-blue-500/20 rounded-lg">
                     <Scale className="h-5 w-5 text-blue-400" />
                   </div>
@@ -594,7 +594,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                     </Badge>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3 p-3 bg-gray-800/30 rounded-lg">
+                <div className="flex items-center space-x-3 p-3 rounded-lg app-card-inner-subtle">
                   <div className="p-2 bg-green-500/20 rounded-lg">
                     <Package className="h-5 w-5 text-green-400" />
                   </div>
@@ -611,11 +611,11 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
         </Card>
 
         {/* Photo Capture Section */}
-        <Card className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 border border-gray-600/50 backdrop-blur-sm">
+        <Card className="app-card">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center space-x-3 text-white">
-              <div className="p-2 bg-purple-500/20 rounded-lg">
-                <Camera className="h-5 w-5 text-purple-400" />
+              <div className="p-2 rounded-lg" style={{ background: 'var(--app-accent-soft)' }}>
+                <Camera className="h-5 w-5 text-emerald-400" />
               </div>
               <span className="text-lg font-semibold">Collection Photos</span>
             </CardTitle>
@@ -686,19 +686,19 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
         )}
 
         {/* Action Buttons */}
-        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-600/50">
+        <div className="flex justify-end space-x-3 pt-4 border-t border-[var(--app-border)]">
           <Button
             variant="outline"
             onClick={onClose}
             disabled={saving}
-            className="border-gray-500 text-gray-300 hover:bg-gray-600 hover:text-white transition-all duration-200"
+            className="border-[var(--app-border)] text-gray-300 hover:brightness-110 hover:text-white transition-all"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSaveCollection}
             disabled={saving || collectionMaterials.length === 0 || !collectionMaterials.some(m => m.materialName && m.kilograms > 0)}
-            className="bg-orange-600 hover:bg-orange-700 text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="app-btn-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
               <>
@@ -719,13 +719,13 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 z-[60]">
-      <div className="bg-gradient-to-br from-gray-800 via-gray-700 to-gray-800 border border-gray-600/50 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] overflow-hidden">
-        {/* Modern Header */}
-        <div className="relative bg-gradient-to-r from-gray-700/50 to-gray-600/50 border-b border-gray-600/50 p-4">
+      <div className="bg-[var(--app-surface)] border border-[var(--app-border)] rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] overflow-hidden">
+        {/* Header */}
+        <div className="relative border-b border-[var(--app-border)] p-4" style={{ background: 'var(--app-surface-elevated)' }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-orange-500/20 rounded-lg">
-                <Package className="h-5 w-5 text-orange-400" />
+              <div className="p-2 rounded-lg" style={{ background: 'var(--app-accent-soft)' }}>
+                <Package className="h-5 w-5 text-emerald-400" />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">Create Collection</h2>
@@ -736,7 +736,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
               variant="ghost" 
               size="sm" 
               onClick={onClose} 
-              className="text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-all duration-200"
+              className="text-gray-400 hover:text-white hover:brightness-110 rounded-lg transition-all"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -746,14 +746,14 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
         {/* Content */}
         <div className="overflow-y-auto max-h-[calc(95vh-120px)] p-4 space-y-4">
           {/* User Info */}
-          <Card className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 border border-gray-600/50 backdrop-blur-sm">
+          <Card className="app-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-white text-base">Customer Information</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="space-y-2">
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 bg-gray-800/30 rounded-lg">
+                  <div className="p-2 app-card-inner-subtle rounded-lg">
                     <span className="block text-xs font-medium text-gray-300">Full Name</span>
                     <p className="text-white text-sm font-semibold truncate">
                       {/* Always prioritize first_name and last_name from users table (saved during Sign Up/Profile Completion) */}
@@ -762,17 +762,17 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                         : user.full_name || 'Unknown User'}
                     </p>
                   </div>
-                  <div className="p-2 bg-gray-800/30 rounded-lg">
+                  <div className="p-2 app-card-inner-subtle rounded-lg">
                     <span className="block text-xs font-medium text-gray-300">Phone Number</span>
                     <p className="text-white text-sm font-semibold truncate">{maskPhone(user.phone) || 'Not provided'}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 bg-gray-800/30 rounded-lg">
+                  <div className="p-2 app-card-inner-subtle rounded-lg">
                     <span className="block text-xs font-medium text-gray-300">Email Address</span>
                     <p className="text-white text-sm font-semibold truncate">{maskEmail(user.email)}</p>
                   </div>
-                  <div className="p-2 bg-gray-800/30 rounded-lg">
+                  <div className="p-2 app-card-inner-subtle rounded-lg">
                     <span className="block text-xs font-medium text-gray-300">Location</span>
                     <p className="text-white text-sm font-semibold truncate" title="Address hidden for privacy">
                       {maskAddress(formatAddress(user))}
@@ -784,7 +784,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
           </Card>
 
           {/* Materials */}
-          <Card className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 border border-gray-600/50 backdrop-blur-sm">
+          <Card className="app-card">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center justify-between text-white text-base">
                 <span className="font-semibold">Materials Collected</span>
@@ -792,7 +792,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                   variant="outline" 
                   size="sm" 
                   onClick={addMaterial} 
-                  className="border-gray-500 text-gray-300 hover:bg-gray-600 hover:text-white transition-all duration-200"
+                  className="border-[var(--app-border)] text-gray-300 hover:brightness-110 hover:text-white transition-all"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Material
@@ -802,18 +802,18 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
             <CardContent className="pt-0">
               <div className="space-y-3">
                 {collectionMaterials.map((material, index) => (
-                  <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-3 p-3 border border-gray-600/50 rounded-xl bg-gradient-to-r from-gray-800/30 to-gray-700/30 backdrop-blur-sm hover:border-gray-500/50 transition-all duration-200">
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-3 p-3 rounded-xl app-card-inner hover:brightness-105 transition-all">
                     <div className="space-y-1.5">
                       <Label className="text-xs font-medium text-gray-300">Material <span className="text-[10px] text-gray-400">({materials.length} available)</span></Label>
                       <Select 
                         value={material.materialName} 
                         onValueChange={(value) => updateMaterial(index, 'materialName', value)}
                       >
-                        <SelectTrigger className="bg-gray-900/50 border-gray-600/50 text-white text-sm hover:border-gray-500/50 focus:border-orange-500/50 transition-all duration-200">
+                        <SelectTrigger className="app-input-bg border text-white text-sm hover:brightness-105 focus:border-emerald-500/50 transition-all">
                           <SelectValue placeholder="Select material" />
                         </SelectTrigger>
-                        <SelectContent 
-                          className="bg-gray-900 border-gray-600/50 backdrop-blur-sm z-[100]" 
+<SelectContent 
+                      className="app-card-inner border z-[100]"
                           position="popper"
                           sideOffset={5}
                           avoidCollisions={true}
@@ -824,7 +824,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                               <SelectItem 
                                 key={mat.id} 
                                 value={mat.name} 
-                                className="text-white text-sm hover:bg-gray-700/50 focus:bg-gray-700/50 transition-all duration-200"
+                                className="text-white text-sm hover:brightness-110 focus:bg-[var(--app-surface-elevated)] transition-all"
                               >
                                 <span>{mat.name}</span>
                               </SelectItem>
@@ -846,7 +846,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                         placeholder="0.0"
                         value={material.kilograms || ''}
                         onChange={(e) => updateMaterial(index, 'kilograms', parseFloat(e.target.value) || 0)}
-                        className="bg-gray-900/50 border-gray-600/50 text-white placeholder-gray-400 text-sm focus:border-orange-500/50 transition-all duration-200"
+                        className="app-input-bg border text-white placeholder-gray-400 text-sm focus:border-emerald-500/50 transition-all"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -858,7 +858,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                         placeholder="0.00"
                         value={material.unitPrice || ''}
                         onChange={(e) => updateMaterial(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                        className="bg-gray-900/50 border-gray-600/50 text-white placeholder-gray-400 text-sm focus:border-orange-500/50 transition-all duration-200"
+                        className="app-input-bg border text-white placeholder-gray-400 text-sm focus:border-emerald-500/50 transition-all"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -885,7 +885,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
               </div>
 
               {/* Summary */}
-              <div className="mt-4 p-3 bg-gray-800/40 rounded-xl border border-gray-600/30">
+              <div className="mt-4 p-3 rounded-xl app-card-inner-subtle">
                 <div className="flex items-center justify-between text-white mb-2">
                   <span className="text-sm font-semibold">Collection Summary</span>
                   <Badge variant="secondary" className="bg-orange-500/20 text-orange-300 border-orange-500/30 text-xs">
@@ -893,13 +893,13 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
                   </Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-2 bg-gray-800/30 rounded-lg">
+                  <div className="p-2 app-card-inner-subtle rounded-lg">
                     <span className="block text-xs font-medium text-gray-300">Total Weight</span>
                     <span className="inline-block mt-1 text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded px-2 py-0.5">
                       {getTotalWeight().toFixed(2)} kg
                     </span>
                   </div>
-                  <div className="p-2 bg-gray-800/30 rounded-lg">
+                  <div className="p-2 app-card-inner-subtle rounded-lg">
                     <span className="block text-xs font-medium text-gray-300">Total Credits</span>
                     <span className="inline-block mt-1 text-xs bg-green-500/20 text-green-300 border border-green-500/30 rounded px-2 py-0.5">
                       C {getTotalValue().toFixed(2)}
@@ -911,7 +911,7 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
           </Card>
 
           {/* Photo Capture Section */}
-          <Card className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 border border-gray-600/50 backdrop-blur-sm">
+          <Card className="app-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-white text-base">Collection Photos</CardTitle>
             </CardHeader>
@@ -981,19 +981,19 @@ export default function CollectionModal({ isOpen, onClose, user, onSuccess, isEm
           )}
 
           {/* Action Buttons */}
-          <div className="flex justify-end space-x-3 pt-3 border-t border-gray-600/50">
+          <div className="flex justify-end space-x-3 pt-3 border-t border-[var(--app-border)]">
             <Button
               variant="outline"
               onClick={onClose}
               disabled={saving}
-              className="border-gray-500 text-gray-300 hover:bg-gray-600 hover:text-white transition-all duration-200"
+              className="border-[var(--app-border)] text-gray-300 hover:brightness-110 hover:text-white transition-all"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSaveCollection}
               disabled={saving || collectionMaterials.length === 0 || !collectionMaterials.some(m => m.materialName && m.kilograms > 0)}
-              className="bg-orange-600 hover:bg-orange-700 text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="app-btn-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? (
                 <>

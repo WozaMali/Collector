@@ -262,111 +262,97 @@ export default function UsersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="flex justify-center mb-4">
-            <img 
-              src="/w yellow.png" 
-              alt="WozaMali Logo" 
-              className="h-16 w-auto"
-            />
-          </div>
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mr-2"></div>
-            <p className="text-gray-300">Loading users...</p>
-          </div>
+    <div className="app-shell min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <img src="/w yellow.png" alt="WozaMali" className="h-14 w-auto mx-auto mb-4 opacity-90" />
+        <div className="flex items-center justify-center gap-2">
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-500 border-t-emerald-400" />
+          <p className="text-gray-400">Loading users...</p>
         </div>
       </div>
+    </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 pb-24">
+    <div className="app-shell min-h-screen pb-28">
       {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700 px-4 py-3 sm:py-4">
+      <header className="app-header px-4 py-4 sm:py-5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white">Users</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">Users</h1>
             <p className="text-gray-400 text-sm">Manage and collect from users</p>
           </div>
-          <div className="flex items-center space-x-3">
-            <Button 
-              variant="outline" 
-              size="sm" 
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
               onClick={loadInitialUsers}
-              className="flex items-center space-x-2 bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+              className="flex items-center gap-2 app-card-inner-subtle text-gray-300 hover:brightness-110 rounded-xl"
             >
               <RefreshCw className="h-4 w-4" />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
-            <div className="flex items-center space-x-2">
-              <Users className="h-5 w-5 text-orange-500" />
+            <div className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2">
+              <Users className="h-4 w-4 text-emerald-400" />
               <span className="text-xs sm:text-sm font-medium text-gray-300">
                 {displayedUsers.length} {searchTerm.trim() ? 'results' : `of ${totalUsersCount || users.length}`}
               </span>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       <div className="p-4 space-y-6">
 
-        {/* Statistics Cards (2x2 layout) */}
+        {/* Statistics Cards */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+          <div className="app-stat-card p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-xs sm:text-sm">Total Users</p>
-                <p className="text-xl sm:text-2xl font-bold text-white">{totalUsersCount || '...'}</p>
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">Total Users</p>
+                <p className="text-xl sm:text-2xl font-bold text-white mt-0.5">{totalUsersCount || '...'}</p>
               </div>
-              <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
+              <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-400/90" />
             </div>
           </div>
-
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+          <div className="app-stat-card p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-xs sm:text-sm">Showing</p>
-                <p className="text-xl sm:text-2xl font-bold text-white">
-                  {displayedUsers.length}
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">Showing</p>
+                <p className="text-xl sm:text-2xl font-bold text-white mt-0.5">{displayedUsers.length}</p>
+              </div>
+              <UserCheck className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-400/90" />
+            </div>
+          </div>
+          <div className="app-stat-card p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">Residents</p>
+                <p className="text-xl sm:text-2xl font-bold text-white mt-0.5">
+                  {displayedUsers.filter(u => { const r = getRoleName(u); return r === 'resident' || r === 'member'; }).length}
                 </p>
               </div>
-              <UserCheck className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
+              <Package className="h-6 w-6 sm:h-8 sm:w-8 text-amber-400/90" />
             </div>
           </div>
-
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+          <div className="app-stat-card p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-xs sm:text-sm">Residents</p>
-                <p className="text-xl sm:text-2xl font-bold text-white">
-                  {displayedUsers.filter(u => {
-                    const r = getRoleName(u);
-                    return r === 'resident' || r === 'member';
-                  }).length}
-                </p>
-              </div>
-              <Package className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500" />
-            </div>
-          </div>
-
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-xs sm:text-sm">Active</p>
-                <p className="text-xl sm:text-2xl font-bold text-white">
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">Active</p>
+                <p className="text-xl sm:text-2xl font-bold text-white mt-0.5">
                   {displayedUsers.filter(u => u.status === 'active').length}
                 </p>
               </div>
-              <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500" />
+              <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-400/90" />
             </div>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-          <div className="flex items-center space-x-2 mb-4">
-            <Filter className="h-5 w-5 text-orange-500" />
+        <div className="app-card p-4 sm:p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Filter className="h-5 w-5 text-emerald-400" />
             <span className="text-white font-medium">Filters</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -375,19 +361,19 @@ export default function UsersPage() {
               <label className="text-sm font-medium text-gray-300">Search</label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -trangray-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     placeholder="Search by name, email, or phone..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onKeyPress={handleSearchKeyPress}
-                    className="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                    className="pl-10 app-input-bg border text-white placeholder-gray-400 rounded-xl focus:border-emerald-500/50"
                   />
                 </div>
                 <Button
                   onClick={handleSearch}
                   disabled={searching}
-                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                  className="app-btn-primary"
                 >
                   {searching ? (
                     <>
@@ -408,7 +394,7 @@ export default function UsersPage() {
                       loadInitialUsers();
                     }}
                     variant="outline"
-                    className="bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+                    className="app-input-bg border text-gray-300 hover:brightness-110 rounded-xl"
                   >
                     Clear
                   </Button>
@@ -429,10 +415,10 @@ export default function UsersPage() {
                   }
                 }}
               >
-                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                <SelectTrigger className="app-input-bg border text-white rounded-xl">
                   <SelectValue placeholder="All roles" />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-700 border-gray-600">
+                <SelectContent className="app-card-inner border rounded-xl">
                   <SelectItem value="all" className="text-white hover:bg-gray-600">All roles</SelectItem>
                   <SelectItem value="resident" className="text-white hover:bg-gray-600">Resident</SelectItem>
                   <SelectItem value="member" className="text-white hover:bg-gray-600">Member</SelectItem>
@@ -455,10 +441,10 @@ export default function UsersPage() {
                   }
                 }}
               >
-                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                <SelectTrigger className="app-input-bg border text-white rounded-xl">
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-700 border-gray-600">
+                <SelectContent className="app-card-inner border rounded-xl">
                   <SelectItem value="all" className="text-white hover:bg-gray-600">All statuses</SelectItem>
                   <SelectItem value="active" className="text-white hover:bg-gray-600">Active</SelectItem>
                   <SelectItem value="inactive" className="text-white hover:bg-gray-600">Inactive</SelectItem>
@@ -470,10 +456,10 @@ export default function UsersPage() {
         </div>
 
         {/* Users List (Mobile-first with Collect button) */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700">
-          <div className="p-4 border-b border-gray-700">
+        <div className="app-card overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-[var(--app-border)]">
             <div className="flex items-center space-x-2">
-              <Users className="h-5 w-5 text-orange-500" />
+              <Users className="h-5 w-5 text-emerald-400" />
               <span className="text-white font-medium">
                 {searchTerm.trim() ? 'Search Results' : 'Users'} ({displayedUsers.length})
               </span>
@@ -485,7 +471,7 @@ export default function UsersPage() {
               }
             </p>
           </div>
-          <div className="divide-y divide-gray-700">
+          <div className="divide-y divide-[var(--app-border)]">
             {displayedUsers.length === 0 ? (
               <div className="text-center py-10">
                 <Users className="h-10 w-10 text-gray-400 mx-auto mb-3" />
@@ -499,9 +485,9 @@ export default function UsersPage() {
               </div>
             ) : (
               displayedUsers.map((user) => (
-                <div key={user.id} className="p-3 sm:p-4 flex items-center justify-between hover:bg-gray-700/60 transition-colors">
+                <div key={user.id} className="p-3 sm:p-4 flex items-center justify-between app-card-inner hover:brightness-110 transition-all rounded-xl">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
                       {getRoleIcon(getRoleName(user))}
                     </div>
                     <div className="min-w-0">
@@ -522,7 +508,7 @@ export default function UsersPage() {
                       <Button 
                         size="sm"
                         onClick={() => handleCreateCollection(user)}
-                        className="bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white px-3 py-2 text-xs sm:text-sm"
+                        className="app-btn-primary px-4 py-2 text-xs sm:text-sm"
                       >
                         Collect
                       </Button>

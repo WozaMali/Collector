@@ -140,9 +140,9 @@ export default function UserSearchModal({ isOpen, onClose, onUserSelect }: UserS
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[70]">
-      <div className="bg-gradient-to-br from-gray-800 via-gray-700 to-gray-800 border border-gray-600/50 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+      <div className="bg-[var(--app-surface)] border border-[var(--app-border)] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="relative bg-gradient-to-r from-gray-700/50 to-gray-600/50 border-b border-gray-600/50 p-6">
+        <div className="relative border-b border-[var(--app-border)] p-6" style={{ background: 'var(--app-surface-elevated)' }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-orange-500/20 rounded-lg">
@@ -157,7 +157,7 @@ export default function UserSearchModal({ isOpen, onClose, onUserSelect }: UserS
               variant="ghost" 
               size="sm" 
               onClick={handleClose} 
-              className="text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-all duration-200"
+              className="text-gray-400 hover:text-white hover:brightness-110 rounded-lg transition-all"
             >
               <X className="h-5 w-5" />
             </Button>
@@ -175,7 +175,7 @@ export default function UserSearchModal({ isOpen, onClose, onUserSelect }: UserS
                 placeholder="Enter first name or last name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-800/50 border-gray-600/50 text-white placeholder-gray-400 focus:border-orange-500/50"
+                className="pl-10 app-input-bg border text-white placeholder-gray-400 focus:border-emerald-500/50"
               />
             </div>
           </div>
@@ -216,7 +216,7 @@ export default function UserSearchModal({ isOpen, onClose, onUserSelect }: UserS
                     className={`cursor-pointer transition-all duration-200 ${
                       selectedUser?.id === user.id 
                         ? 'bg-orange-600/20 border-orange-500/50' 
-                        : 'bg-gray-800/50 border-gray-600/50 hover:bg-gray-700/50'
+                        : 'app-card-inner hover:brightness-110'
                     }`}
                     onClick={() => handleUserSelect(user)}
                   >
@@ -255,7 +255,7 @@ export default function UserSearchModal({ isOpen, onClose, onUserSelect }: UserS
 
           {/* Action Buttons */}
           {selectedUser && (
-            <div className="flex space-x-3 pt-4 border-t border-gray-600/50">
+            <div className="flex space-x-3 pt-4 border-t border-[var(--app-border)]">
               <Button
                 onClick={handleConfirmSelection}
                 className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
@@ -266,7 +266,7 @@ export default function UserSearchModal({ isOpen, onClose, onUserSelect }: UserS
               <Button
                 variant="outline"
                 onClick={handleClose}
-                className="border-gray-500 text-gray-300 hover:bg-gray-600 hover:text-white"
+                className="border-[var(--app-border)] text-gray-300 hover:brightness-110 hover:text-white"
               >
                 Cancel
               </Button>

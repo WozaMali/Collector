@@ -257,7 +257,7 @@ export default function CollectionForm({ collectorId, residentId, onSuccess, onC
   }
 
   return (
-    <div className={`${isModal ? 'p-3 sm:p-4 bg-gray-800 rounded-xl border border-gray-700' : 'bg-white rounded-2xl shadow-xl p-3 sm:p-4 max-w-2xl mx-auto'}`}>
+    <div className={`${isModal ? 'p-3 sm:p-4 app-card rounded-xl' : 'bg-white rounded-2xl shadow-xl p-3 sm:p-4 max-w-2xl mx-auto'}`}>
       <div className="flex items-center justify-between mb-3 sm:mb-4">
         <h2 className={`text-lg sm:text-xl font-bold ${isModal ? 'text-white' : 'text-gray-900'}`}>Create New Collection</h2>
         {onCancel && (
@@ -277,12 +277,12 @@ export default function CollectionForm({ collectorId, residentId, onSuccess, onC
               value={residentSearch}
               onChange={async (e) => { setResidentSearch(e.target.value); await loadResidents(e.target.value); }}
               placeholder="Search residents"
-              className={`w-full px-2.5 py-2 rounded-lg focus:ring-2 focus:ring-yellow-500 text-xs sm:text-sm ${isModal ? 'bg-gray-700 border border-gray-600 text-white' : 'border border-gray-300'}`}
+              className={`w-full px-2.5 py-2 rounded-lg focus:ring-2 focus:ring-emerald-500/30 text-xs sm:text-sm ${isModal ? 'app-input-bg border text-white' : 'border border-gray-300'}`}
             />
             <select
               value={formData.resident_id}
               onChange={(e) => setFormData({ ...formData, resident_id: e.target.value })}
-              className={`w-full px-2.5 py-2 rounded-lg focus:ring-2 focus:ring-yellow-500 text-xs sm:text-sm ${isModal ? 'bg-gray-700 border border-gray-600 text-white' : 'border border-gray-300'}`}
+              className={`w-full px-2.5 py-2 rounded-lg focus:ring-2 focus:ring-emerald-500/30 text-xs sm:text-sm ${isModal ? 'app-input-bg border text-white' : 'border border-gray-300'}`}
               required
             >
               <option value="">Choose…</option>
@@ -297,11 +297,11 @@ export default function CollectionForm({ collectorId, residentId, onSuccess, onC
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className={`block text-sm font-medium ${isModal ? 'text-gray-300' : 'text-gray-700'}`}>Materials</label>
-            <button type="button" onClick={() => setFormData(prev => ({ ...prev, materials: [...prev.materials, { material_id: '', weight_kg: '', unit_price: '' }] }))} className="px-2.5 py-1 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs sm:text-sm">Add Material</button>
+            <button type="button" onClick={() => setFormData(prev => ({ ...prev, materials: [...prev.materials, { material_id: '', weight_kg: '', unit_price: '' }] }))} className={`px-2.5 py-1 rounded text-xs sm:text-sm ${isModal ? 'app-card-inner-subtle text-gray-200 hover:brightness-110' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`}>Add Material</button>
           </div>
           <div className="space-y-2">
             {formData.materials.map((row, idx) => (
-              <div key={idx} className={`grid grid-cols-2 md:grid-cols-4 gap-2 ${isModal ? 'bg-gray-700 border border-gray-600' : 'bg-gray-50 border border-gray-200'} rounded-lg p-2`}>
+              <div key={idx} className={`grid grid-cols-2 md:grid-cols-4 gap-2 ${isModal ? 'app-card-inner' : 'bg-gray-50 border border-gray-200'} rounded-lg p-2`}>
                 <div className="col-span-2 md:col-span-1">
                   <label className={`block text-[11px] sm:text-xs mb-1 ${isModal ? 'text-gray-300' : 'text-gray-700'}`}>Material</label>
                   <select
@@ -313,7 +313,7 @@ export default function CollectionForm({ collectorId, residentId, onSuccess, onC
                       (materialsArr[idx] as any).unit_price = String(mat?.unit_price ?? '');
                       setFormData({ ...formData, materials: materialsArr });
                     }}
-                    className={`w-full px-2.5 py-2 rounded text-xs sm:text-sm ${isModal ? 'bg-gray-600 border border-gray-500 text-white' : 'border border-gray-300'}`}
+                    className={`w-full px-2.5 py-2 rounded text-xs sm:text-sm ${isModal ? 'app-input-bg border text-white' : 'border border-gray-300'}`}
                     required
                   >
                     <option value="">Choose…</option>
@@ -334,7 +334,7 @@ export default function CollectionForm({ collectorId, residentId, onSuccess, onC
                       materialsArr[idx].weight_kg = e.target.value;
                       setFormData({ ...formData, materials: materialsArr });
                     }}
-                    className={`w-full px-2.5 py-2 rounded text-xs sm:text-sm ${isModal ? 'bg-gray-600 border border-gray-500 text-white' : 'border border-gray-300'}`}
+                    className={`w-full px-2.5 py-2 rounded text-xs sm:text-sm ${isModal ? 'app-input-bg border text-white' : 'border border-gray-300'}`}
                     placeholder="0.00"
                     required
                   />
@@ -351,12 +351,12 @@ export default function CollectionForm({ collectorId, residentId, onSuccess, onC
                       (materialsArr[idx] as any).unit_price = e.target.value;
                       setFormData({ ...formData, materials: materialsArr });
                     }}
-                    className={`w-full px-2.5 py-2 rounded text-xs sm:text-sm ${isModal ? 'bg-gray-600 border border-gray-500 text-white' : 'border border-gray-300'}`}
+                    className={`w-full px-2.5 py-2 rounded text-xs sm:text-sm ${isModal ? 'app-input-bg border text-white' : 'border border-gray-300'}`}
                     placeholder="0.00"
                   />
                 </div>
                 <div className="col-span-2 md:col-span-1 flex items-end">
-                  <button type="button" onClick={() => setFormData(prev => ({ ...prev, materials: prev.materials.filter((_, i) => i !== idx) }))} className={`${isModal ? 'bg-gray-600 text-gray-200 hover:bg-gray-500' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'} w-full px-3 py-2 rounded text-xs sm:text-sm`}>
+                  <button type="button" onClick={() => setFormData(prev => ({ ...prev, materials: prev.materials.filter((_, i) => i !== idx) }))} className={`${isModal ? 'app-card-inner-subtle text-gray-200 hover:brightness-110' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'} w-full px-3 py-2 rounded text-xs sm:text-sm`}>
                     Remove
                   </button>
                 </div>
@@ -366,7 +366,7 @@ export default function CollectionForm({ collectorId, residentId, onSuccess, onC
         </div>
 
         {/* Summary */}
-        <div className={`${isModal ? 'bg-gray-700 border border-gray-600' : 'bg-gray-50 border border-gray-200'} rounded-lg p-2.5 sm:p-3`}>
+        <div className={`${isModal ? 'app-card-inner' : 'bg-gray-50 border border-gray-200'} rounded-lg p-2.5 sm:p-3`}>
           {(() => {
             const idToMat = new Map(materials.map(m => [m.id, m]));
             const selected = (formData.materials || []).filter((m: any) => m.material_id && Number(m.weight_kg) > 0);
@@ -394,7 +394,7 @@ export default function CollectionForm({ collectorId, residentId, onSuccess, onC
           <textarea
             value={formData.notes}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            className={`w-full px-3 py-2 rounded-lg text-sm ${isModal ? 'bg-gray-700 border border-gray-600 text-white' : 'border border-gray-300'}`}
+            className={`w-full px-3 py-2 rounded-lg text-sm ${isModal ? 'app-input-bg border text-white' : 'border border-gray-300'}`}
             rows={3}
             placeholder="Add any notes about this collection..."
           />
@@ -413,7 +413,7 @@ export default function CollectionForm({ collectorId, residentId, onSuccess, onC
                 reader.readAsDataURL(f);
               } else setWeightPhotoPreview(null);
             }} className="hidden" />
-            <button type="button" onClick={() => weightInputRef.current?.click()} className={`${isModal ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'} w-full px-2.5 py-2 rounded-lg border ${isModal ? 'border-gray-600' : 'border-gray-300'} transition text-xs sm:text-sm`}>Use Camera</button>
+            <button type="button" onClick={() => weightInputRef.current?.click()} className={`${isModal ? 'app-input-bg border text-white hover:brightness-110' : 'bg-gray-100 text-gray-900 hover:bg-gray-200 border border-gray-300'} w-full px-2.5 py-2 rounded-lg transition text-xs sm:text-sm`}>Use Camera</button>
             {weightPhotoPreview && <img src={weightPhotoPreview} alt="Weight preview" className="mt-2 w-24 h-24 sm:w-28 sm:h-28 object-cover rounded" />}
           </div>
 
@@ -428,7 +428,7 @@ export default function CollectionForm({ collectorId, residentId, onSuccess, onC
                 reader.readAsDataURL(f);
               } else setMaterialPhotoPreview(null);
             }} className="hidden" />
-            <button type="button" onClick={() => materialInputRef.current?.click()} className={`${isModal ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'} w-full px-2.5 py-2 rounded-lg border ${isModal ? 'border-gray-600' : 'border-gray-300'} transition text-xs sm:text-sm`}>Use Camera</button>
+            <button type="button" onClick={() => materialInputRef.current?.click()} className={`${isModal ? 'app-input-bg border text-white hover:brightness-110' : 'bg-gray-100 text-gray-900 hover:bg-gray-200 border border-gray-300'} w-full px-2.5 py-2 rounded-lg transition text-xs sm:text-sm`}>Use Camera</button>
             {materialPhotoPreview && <img src={materialPhotoPreview} alt="Material preview" className="mt-2 w-24 h-24 sm:w-28 sm:h-28 object-cover rounded" />}
           </div>
         </div>
@@ -438,7 +438,7 @@ export default function CollectionForm({ collectorId, residentId, onSuccess, onC
             {loading ? 'Creating…' : 'Create Collection'}
           </button>
           {onCancel && (
-            <button type="button" onClick={onCancel} className={`${isModal ? 'border-gray-600 text-gray-200 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'} px-3 sm:px-4 py-2 border rounded-lg transition text-sm`}>
+            <button type="button" onClick={onCancel} className={`${isModal ? 'border-[var(--app-border)] text-gray-200 hover:brightness-110' : 'border-gray-300 text-gray-700 hover:bg-gray-50'} px-3 sm:px-4 py-2 border rounded-lg transition text-sm`}>
               Cancel
             </button>
           )}

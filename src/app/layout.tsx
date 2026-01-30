@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import { getPublicSupabaseEnv } from "@/lib/env.server";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "@/components/ui/sonner";
@@ -9,7 +10,11 @@ import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import SplashScreen from "@/components/SplashScreen";
 import RouteTransition from "@/components/RouteTransition";
 
-const inter = Inter({ subsets: ["latin"] });
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans-app",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Collector",
@@ -33,6 +38,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__SUPABASE_ENV__=${JSON.stringify(getPublicSupabaseEnv())};`,
+          }}
+        />
         <script dangerouslySetInnerHTML={{
           __html: `
             // Service worker cleanup (skip on native Capacitor)
@@ -64,7 +74,7 @@ export default function RootLayout({
           `
         }} />
       </head>
-      <body className={inter.className}>
+      <body className={plusJakarta.className}>
         <SplashScreen />
         <ThemeProvider
           defaultTheme="system"

@@ -125,6 +125,42 @@ export class UsersService {
   }
 
   /**
+   * Get active customers count only (customer-facing roles, status = active).
+   * Use this for stats when there are many users (e.g. 2000+) to avoid loading all rows.
+   */
+  static async getActiveCustomersCount(): Promise<{ count: number; error: string | null }> {
+    try {
+      const allowedRoleNames = ['resident', 'customer', 'member', 'user'];
+      const { data: roleRows, error: roleErr } = await supabase
+        .from('roles')
+        .select('id, name')
+        .in('name', allowedRoleNames);
+
+      if (roleErr || !roleRows || roleRows.length === 0) {
+        const { count, error } = await supabase
+          .from('users')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'active');
+        if (error) return { count: 0, error: error.message };
+        return { count: count ?? 0, error: null };
+      }
+
+      const allowedRoleIds = roleRows.map(r => r.id);
+      const { count, error } = await supabase
+        .from('users')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'active')
+        .in('role_id', allowedRoleIds);
+
+      if (error) return { count: 0, error: error.message };
+      return { count: count ?? 0, error: null };
+    } catch (error) {
+      console.error('Exception fetching active customers count:', error);
+      return { count: 0, error: 'An unexpected error occurred' };
+    }
+  }
+
+  /**
    * Get active customers with limit (for initial page load)
    */
   static async getActiveCustomersLimited(limit: number = 20): Promise<{ data: User[] | null; error: string | null }> {

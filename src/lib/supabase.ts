@@ -1,31 +1,35 @@
 import { createClient } from '@supabase/supabase-js'
 
-const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const rawAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// Declare global so client can read env injected by root layout script
+declare global {
+  interface Window {
+    __SUPABASE_ENV__?: { url: string; anonKey: string }
+  }
+}
 
-// Trim to remove stray whitespace/CRLF that can break websocket apikey param
-const supabaseUrl = rawUrl?.trim()
-const supabaseAnonKey = rawAnonKey?.trim()
-
-// Lazy initialization to allow build-time execution without env vars
-// During build, Next.js may execute this code without env vars set
-// We'll create a stub client during build and throw at runtime if missing
+function getEnv() {
+  // Prefer server-injected env (layout script) so client always gets values
+  if (typeof window !== 'undefined' && window.__SUPABASE_ENV__) {
+    const { url, anonKey } = window.__SUPABASE_ENV__
+    return { supabaseUrl: (url || '').trim(), supabaseAnonKey: (anonKey || '').trim() }
+  }
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+  const rawAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
+  return { supabaseUrl: rawUrl.trim(), supabaseAnonKey: rawAnonKey.trim() }
+}
 
 let supabaseClient: ReturnType<typeof createClient> | null = null
 
 function getSupabaseClient() {
-  // If client already initialized, return it
   if (supabaseClient) {
     return supabaseClient
   }
 
-  // Check if we're in a build environment (no window, and not production runtime)
+  const { supabaseUrl, supabaseAnonKey } = getEnv()
   const isBuildTime = typeof window === 'undefined' && process.env.NEXT_PHASE !== 'production-server'
 
   if (!supabaseUrl || !supabaseAnonKey) {
     if (isBuildTime) {
-      // During build, create a stub client to prevent build errors
-      // This will fail at runtime if env vars aren't set
       supabaseClient = createClient('https://placeholder.supabase.co', 'placeholder-key', {
         auth: {
           autoRefreshToken: false,
@@ -34,10 +38,13 @@ function getSupabaseClient() {
         },
       })
       return supabaseClient
-    } else {
-      // At runtime, throw error if env vars are missing
-      throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
     }
+    // At runtime when missing: use stub so app doesn't crash; show config error in UI
+    console.error('Missing Supabase env (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY). Check .env.local and restart dev server.')
+    supabaseClient = createClient('https://placeholder.supabase.co', 'placeholder-key', {
+      auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+    })
+    return supabaseClient
   }
 
   // Debug logging (only at runtime)

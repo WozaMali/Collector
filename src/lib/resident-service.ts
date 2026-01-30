@@ -22,49 +22,85 @@ export interface ResidentWithoutAddress extends Resident {
   hasAddress: false;
 }
 
+/** Users table columns only (no areas join - no FK users→areas in schema). */
+const USERS_RESIDENT_SELECT = `
+  id,
+  first_name,
+  last_name,
+  phone,
+  email,
+  township_id,
+  created_at,
+  street_addr,
+  subdivision,
+  city,
+  postal_code
+`;
+
+/** Customer-facing role names (case-insensitive). */
+const CUSTOMER_ROLE_NAMES = ['resident', 'member', 'customer', 'user'];
+
+/**
+ * Get role IDs for resident/member/customer (case-insensitive) so we can query users by role_id.
+ * Returns empty array if RLS or missing roles block the query.
+ */
+async function getCustomerRoleIds(): Promise<string[]> {
+  const ids: string[] = [];
+  for (const name of CUSTOMER_ROLE_NAMES) {
+    const { data: row, error } = await supabase
+      .from('roles')
+      .select('id')
+      .ilike('name', name)
+      .maybeSingle();
+    if (!error && row?.id) ids.push(row.id);
+  }
+  return ids;
+}
+
+/** Single resident role ID (for APIs that expect one). Prefer getCustomerRoleIds for lists. */
+async function getResidentRoleId(): Promise<string | null> {
+  const ids = await getCustomerRoleIds();
+  return ids.length > 0 ? ids[0] : null;
+}
+
+function mapUserToResident(user: any): Resident {
+  const address = user.street_addr && user.city
+    ? `${user.street_addr}${user.subdivision ? ', ' + user.subdivision : ''}, ${user.areas?.[0]?.name || 'Unknown Township'}, ${user.city}${user.postal_code ? ' ' + user.postal_code : ''}`.replace(/,\s*,/g, ',').trim()
+    : 'No address provided';
+  const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+  const displayName = fullName || user.email || 'Resident';
+  return {
+    id: String(user.id),
+    name: displayName,
+    phone: user.phone,
+    email: user.email || undefined,
+    area_id: user.township_id || '',
+    township: user.areas?.[0]?.name || 'Unknown Township',
+    address,
+    hasAddress: !!(user.street_addr && user.city),
+    created_at: user.created_at || new Date().toISOString()
+  };
+}
+
 export class ResidentService {
+  /**
+   * Get all residents: query roles for resident/member/customer IDs (case-insensitive), then users with those role_ids and status = active.
+   */
   static async getAllResidents(): Promise<Resident[]> {
     try {
-      // Skip residents_view as it may not exist - go directly to users table fallback
-      // 1) Preferred: users table (resident/member/customer roles)
+      const roleIds = await getCustomerRoleIds();
+      if (roleIds.length === 0) return [];
 
-      // 2) Fallback: users table (resident/member/customer roles)
-      try {
-        const { data: rolesData } = await supabase
-          .from('roles')
-          .select('id, name')
-          .in('name', ['resident', 'member', 'customer']);
+      const { data, error } = await supabase
+        .from('users')
+        .select(USERS_RESIDENT_SELECT)
+        .in('role_id', roleIds)
+        .eq('status', 'active')
+        .order('first_name', { ascending: true })
+        .limit(1000);
 
-        const roleIds = (rolesData || []).map(r => r.id);
-        
-        // Use role_id IN filter instead of or() with non-existent columns
-        const { data, error } = await supabase
-          .from('users')
-          .select('id, first_name, last_name, email, created_at')
-          .in('role_id', roleIds.length > 0 ? roleIds : [])
-          .eq('status', 'active')
-          .order('first_name', { ascending: true })
-          .limit(1000);
-
-        if (!error && Array.isArray(data)) {
-          return data.map((u: any) => ({
-            id: String(u.id),
-            name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || 'Resident',
-            phone: undefined,
-            email: u.email || undefined,
-            area_id: '',
-            township: '',
-            address: undefined,
-            hasAddress: false,
-            created_at: u.created_at || new Date().toISOString()
-          }));
-        }
-      } catch (e) {
-        // continue to final fallback
-      }
-
-      // 3) Final fallback: return empty list
-      return [];
+      if (error) return [];
+      return (data || []).map(mapUserToResident);
     } catch (error) {
       console.error('Error fetching residents:', error);
       return [];
@@ -73,71 +109,19 @@ export class ResidentService {
 
   static async getResidentsByTownship(townshipId: string): Promise<Resident[]> {
     try {
-      // Get both resident and member role IDs (support unified naming)
-      const { data: rolesData } = await supabase
-        .from('roles')
-        .select('id, name')
-        .in('name', ['resident', 'member', 'customer']);
+      const roleIds = await getCustomerRoleIds();
+      if (roleIds.length === 0) return [];
 
-      const roleIds = (rolesData || []).map(r => r.id);
-      
-      // Use role_id IN filter instead of or() with non-existent columns
-      let query = supabase
+      const { data, error } = await supabase
         .from('users')
-        .select(`
-          id,
-          first_name,
-          last_name,
-          phone,
-          email,
-          township_id,
-          created_at,
-          street_addr,
-          subdivision,
-          city,
-          postal_code,
-          areas!township_id(name)
-        `)
+        .select(USERS_RESIDENT_SELECT)
+        .in('role_id', roleIds)
+        .eq('status', 'active')
         .eq('township_id', townshipId)
-        .eq('status', 'active');
-      
-      // Only add role filter if we have role IDs
-      if (roleIds.length > 0) {
-        query = query.in('role_id', roleIds);
-      }
+        .order('first_name', { ascending: true });
 
-      const { data, error } = await query.order('first_name');
-
-      if (error) throw error;
-
-      console.log('🔍 ResidentService: Raw user data:', data?.slice(0, 2)); // Log first 2 users for debugging
-
-      return data?.map(user => {
-        // Use direct address fields from users table (same as Main App Dashboard)
-        const address = user.street_addr && user.city ? 
-          `${user.street_addr}${user.subdivision ? ', ' + user.subdivision : ''}, ${user.areas?.[0]?.name || 'Unknown Township'}, ${user.city}${user.postal_code ? ' ' + user.postal_code : ''}`.replace(/,\s*,/g, ',').trim() : 
-          'No address provided';
-
-        // Handle cases where first_name or last_name might be null/empty
-        const firstName = user.first_name || '';
-        const lastName = user.last_name || '';
-        const fullName = `${firstName} ${lastName}`.trim();
-        
-        // If no name available, use email as fallback
-        const displayName = fullName || user.email || 'Unknown Resident';
-
-        return {
-          id: user.id,
-          name: displayName,
-          phone: user.phone,
-          email: user.email,
-          area_id: user.township_id,
-          township: user.areas?.[0]?.name || 'Unknown Township',
-          address,
-          hasAddress: !!(user.street_addr && user.city),
-          created_at: user.created_at
-        };
-      }) || [];
+      if (error) return [];
+      return (data || []).map(mapUserToResident);
     } catch (error) {
       console.error('Error fetching residents by township:', error);
       return [];
@@ -156,76 +140,99 @@ export class ResidentService {
 
   static async searchResidents(query: string): Promise<Resident[]> {
     try {
-      // Get both resident and member role IDs (support unified naming)
-      const { data: rolesData } = await supabase
-        .from('roles')
-        .select('id, name')
-        .in('name', ['resident', 'member', 'customer']);
+      const roleIds = await getCustomerRoleIds();
+      if (roleIds.length === 0) return [];
 
-      const roleIds = (rolesData || []).map(r => r.id);
-      const orParts = [
-        'role.eq.resident',
-        'role.eq.member',
-        'role.eq.customer',
-        'role_name.eq.resident',
-        'role_name.eq.member',
-        'role_name.eq.customer',
-        ...roleIds.map((id: string) => `role_id.eq.${id}`)
-      ];
-
-      const { data, error } = await supabase
+      const term = (query || '').trim();
+      let q = supabase
         .from('users')
-        .select(`
-          id,
-          first_name,
-          last_name,
-          phone,
-          email,
-          township_id,
-          created_at,
-          street_addr,
-          subdivision,
-          city,
-          postal_code,
-          areas!township_id(name)
-        `)
-        .or(orParts.join(','))
-        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,phone.ilike.%${query}%,email.ilike.%${query}%`)
-        .order('first_name');
-
-      if (error) throw error;
-
-      console.log('🔍 ResidentService: Raw user data:', data?.slice(0, 2)); // Log first 2 users for debugging
-
-      return data?.map(user => {
-        // Use direct address fields from users table (same as Main App Dashboard)
-        const address = user.street_addr && user.city ? 
-          `${user.street_addr}${user.subdivision ? ', ' + user.subdivision : ''}, ${user.areas?.[0]?.name || 'Unknown Township'}, ${user.city}${user.postal_code ? ' ' + user.postal_code : ''}`.replace(/,\s*,/g, ',').trim() : 
-          'No address provided';
-
-        // Handle cases where first_name or last_name might be null/empty
-        const firstName = user.first_name || '';
-        const lastName = user.last_name || '';
-        const fullName = `${firstName} ${lastName}`.trim();
-        
-        // If no name available, use email as fallback
-        const displayName = fullName || user.email || 'Unknown Resident';
-
-        return {
-          id: user.id,
-          name: displayName,
-          phone: user.phone,
-          email: user.email,
-          area_id: user.township_id,
-          township: user.areas?.[0]?.name || 'Unknown Township',
-          address,
-          hasAddress: !!(user.street_addr && user.city),
-          created_at: user.created_at
-        };
-      }) || [];
+        .select(USERS_RESIDENT_SELECT)
+        .in('role_id', roleIds)
+        .eq('status', 'active')
+        .order('first_name', { ascending: true })
+        .limit(200);
+      if (term) {
+        q = q.or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%`);
+      }
+      const { data, error } = await q;
+      if (error) return [];
+      return (data || []).map(mapUserToResident);
     } catch (error) {
       console.error('Error searching residents:', error);
       return [];
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Resident users as raw user rows (for Dashboard Live Collection card)
+  // Same two-step pattern: get resident role ID, then query users by role_id + status = active.
+  // ---------------------------------------------------------------------------
+
+  /** Count of active resident/member/customer users (for Dashboard "X users" stat). */
+  static async getResidentUsersCount(): Promise<{ count: number; error: string | null }> {
+    try {
+      const roleIds = await getCustomerRoleIds();
+      if (roleIds.length === 0) return { count: 0, error: null };
+
+      const { count, error } = await supabase
+        .from('users')
+        .select('id', { count: 'exact', head: true })
+        .in('role_id', roleIds)
+        .eq('status', 'active');
+
+      if (error) return { count: 0, error: error.message };
+      return { count: count ?? 0, error: null };
+    } catch (error) {
+      console.error('Error fetching resident users count:', error);
+      return { count: 0, error: 'An unexpected error occurred' };
+    }
+  }
+
+  /** First N resident/member/customer users as raw rows for Live Collection list. */
+  static async getResidentUsersLimited(limit: number = 50): Promise<{ data: any[]; error: string | null }> {
+    try {
+      const roleIds = await getCustomerRoleIds();
+      if (roleIds.length === 0) return { data: [], error: null };
+
+      const { data, error } = await supabase
+        .from('users')
+        .select(USERS_RESIDENT_SELECT)
+        .in('role_id', roleIds)
+        .eq('status', 'active')
+        .order('first_name', { ascending: true })
+        .limit(limit);
+
+      if (error) return { data: [], error: error.message };
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('Error fetching resident users limited:', error);
+      return { data: [], error: 'An unexpected error occurred' };
+    }
+  }
+
+  /** Search resident/member/customer users by name/email/phone; returns raw user rows for Live Collection. */
+  static async searchResidentUsers(term: string, limit: number = 100): Promise<{ data: any[]; error: string | null }> {
+    try {
+      const roleIds = await getCustomerRoleIds();
+      if (roleIds.length === 0) return { data: [], error: null };
+
+      const t = (term || '').trim();
+      let q = supabase
+        .from('users')
+        .select(USERS_RESIDENT_SELECT)
+        .in('role_id', roleIds)
+        .eq('status', 'active')
+        .order('first_name', { ascending: true })
+        .limit(limit);
+      if (t) {
+        q = q.or(`first_name.ilike.%${t}%,last_name.ilike.%${t}%,phone.ilike.%${t}%,email.ilike.%${t}%`);
+      }
+      const { data, error } = await q;
+      if (error) return { data: [], error: error.message };
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('Error searching resident users:', error);
+      return { data: [], error: 'An unexpected error occurred' };
     }
   }
 }

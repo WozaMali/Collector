@@ -99,6 +99,24 @@ export default function DashboardPage() {
   
   // User search state
   const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [allCustomers, setAllCustomers] = useState<Array<{
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone?: string;
+    full_name?: string;
+    status: string;
+    role_id: string;
+    created_at: string;
+    street_addr?: string;
+    township_id?: string;
+    subdivision?: string;
+    suburb?: string;
+    city?: string;
+    postal_code?: string;
+    area_id?: string;
+  }>>([]);
   const [searchedUsers, setSearchedUsers] = useState<Array<{
     id: string;
     first_name: string;
@@ -224,10 +242,16 @@ export default function DashboardPage() {
           10000 // 10 second timeout
         ).catch(() => ({ data: null, error: { message: 'Timeout' } })),
         
-        // Total customers count - active users with customer-facing roles
+        // Same as Users page: active customers count + first 50 for Live Collection list
         fetchWithTimeout(
-          UsersService.getActiveCustomers(),
-          10000 // 10 second timeout
+          Promise.all([
+            UsersService.getActiveCustomersCount(),
+            UsersService.getActiveCustomersLimited(50),
+          ]).then(([countRes, listRes]) => ({
+            data: { count: countRes.count, list: listRes.data || [] },
+            error: countRes.error || listRes.error || null,
+          })),
+          10000
         ).catch(() => ({ data: null, error: { message: 'Timeout' } })),
         
         // Recent pickups
@@ -254,7 +278,15 @@ export default function DashboardPage() {
 
       // Calculate stats (handle errors gracefully)
       const todayPickups = todayPickupsData?.length || 0;
-      const totalCustomers = (totalCustomersData?.data?.length || totalCustomersData?.length || 0);
+      const totalCustomers = totalCustomersData?.data?.count ?? totalCustomersData?.data?.list?.length ?? 0;
+      
+      // Store first 50 customers for Live Collection (same role normalization as Users page)
+      const rawCustomers = totalCustomersData?.data?.list || [];
+      const mappedCustomers = (rawCustomers || []).map((u: any) => {
+        const roleFromRelation = (u.roles && typeof u.roles === 'object' && u.roles.name) ? { name: u.roles.name } : undefined;
+        return roleFromRelation ? { ...u, role: roleFromRelation } : u;
+      });
+      setAllCustomers(mappedCustomers);
       
       // Calculate wallet balance and total weight from approved/completed collections
       const walletBalance = (walletData || []).reduce((sum, c) => sum + (Number(c.total_value) || 0), 0);
@@ -375,7 +407,7 @@ export default function DashboardPage() {
   // Realtime subscription disabled to prevent loading loops
   // Can be re-enabled later with proper debouncing if needed
 
-  // User search function - Same as Pickups page
+  // User search for Live Collection (same as Users page)
   const handleUserSearch = async () => {
     if (!userSearchTerm.trim()) {
       setSearchedUsers([]);
@@ -389,107 +421,25 @@ export default function DashboardPage() {
 
     try {
       setSearchingUsers(true);
-      
-      // Get ALL active customers first, then filter client-side to show all matches
-      const { data: allCustomers, error: allError } = await UsersService.getActiveCustomers();
-      
-      if (allError) {
-        console.error('Error fetching all customers:', allError);
-        // Fallback to limited search
-        const { data, error } = await UsersService.searchActiveCustomers(
-          userSearchTerm,
-          undefined,
-          'active',
-          100
-        );
-        
-        if (error) {
-          console.error('Error searching users:', error);
-          return;
-        }
-        
-        const mapped = (data || []).map((u: any) => {
-          const roleFromRelation = (u.roles && typeof u.roles === 'object' && u.roles.name) ? { name: u.roles.name } : undefined;
-          return roleFromRelation ? { ...u, role: roleFromRelation } : u;
-        });
-        
-        const searchLower = userSearchTerm.toLowerCase().trim();
-        const filtered = mapped.filter((user: any) => {
-          const firstName = (user.first_name || '').toLowerCase().trim();
-          const lastName = (user.last_name || '').toLowerCase().trim();
-          const fullName = (user.full_name || '').toLowerCase().trim();
-          
-          return firstName.includes(searchLower) || 
-                 lastName.includes(searchLower) || 
-                 fullName.includes(searchLower);
-        });
-        
-        setSearchedUsers(filtered);
+
+      const { data, error } = await UsersService.searchActiveCustomers(
+        userSearchTerm,
+        undefined,
+        'active',
+        100
+      );
+
+      if (error) {
+        console.error('Error searching users:', error);
+        setSearchedUsers([]);
         return;
       }
 
-      // Normalize role field for all customers
-      const mapped = (allCustomers || []).map((u: any) => {
+      const mapped = (data || []).map((u: any) => {
         const roleFromRelation = (u.roles && typeof u.roles === 'object' && u.roles.name) ? { name: u.roles.name } : undefined;
         return roleFromRelation ? { ...u, role: roleFromRelation } : u;
       });
-
-      // Filter to only name matches (not email) - search against actual database names
-      const searchLower = userSearchTerm.toLowerCase().trim();
-      const searchWords = searchLower.split(/\s+/).filter(w => w.length > 0);
-      
-      const filtered = mapped.filter((user: any) => {
-        // Search against actual database names
-        const firstName = (user.first_name || '').toLowerCase().trim();
-        const lastName = (user.last_name || '').toLowerCase().trim();
-        const fullName = (user.full_name || '').toLowerCase().trim();
-        
-        // If single word search, match against first name or last name
-        if (searchWords.length === 1) {
-          const word = searchWords[0];
-          return firstName === word || 
-                 lastName === word ||
-                 firstName.startsWith(word) ||
-                 lastName.startsWith(word) ||
-                 firstName.includes(word) ||
-                 lastName.includes(word);
-        }
-        
-        // If multiple words, try to match as first name + last name (in any order)
-        if (searchWords.length >= 2) {
-          const word1 = searchWords[0];
-          const word2 = searchWords[1];
-          return (firstName.includes(word1) && lastName.includes(word2)) ||
-                 (firstName.includes(word2) && lastName.includes(word1)) ||
-                 (firstName === word1 && lastName === word2) ||
-                 (firstName === word2 && lastName === word1) ||
-                 fullName.includes(searchLower);
-        }
-        
-        // Fallback: match against any part of the name
-        return firstName.includes(searchLower) || 
-               lastName.includes(searchLower) || 
-               fullName.includes(searchLower);
-      });
-
-      // Sort results: exact matches first, then by first name
-      filtered.sort((a, b) => {
-        const aFirstName = (a.first_name || '').toLowerCase().trim();
-        const aLastName = (a.last_name || '').toLowerCase().trim();
-        const bFirstName = (b.first_name || '').toLowerCase().trim();
-        const bLastName = (b.last_name || '').toLowerCase().trim();
-        
-        // Exact matches first
-        const aExact = aFirstName === searchLower || aLastName === searchLower;
-        const bExact = bFirstName === searchLower || bLastName === searchLower;
-        if (aExact && !bExact) return -1;
-        if (!aExact && bExact) return 1;
-        
-        // Then by first name
-        return aFirstName.localeCompare(bFirstName);
-      });
-
-      setSearchedUsers(filtered);
+      setSearchedUsers(mapped);
     } catch (error) {
       console.error('Error searching users:', error);
     } finally {
@@ -549,67 +499,61 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 pb-24">
+    <div className="app-shell min-h-screen pb-28">
       {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700 px-4 py-3 sm:py-4">
+      <header className="app-header px-4 py-4 sm:py-5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-3">
-              <img 
-                src="/W Green.png.png" 
-                alt="WozaMali Logo" 
-                className="h-14 sm:h-16 w-auto"
-              />
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white">Woza Collector</h1>
-                <p className="text-gray-400 text-sm">Welcome back, {displayName}!</p>
-              </div>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <img src="/W Green.png.png" alt="WozaMali" className="h-12 sm:h-14 w-auto" />
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">Woza Collector</h1>
+              <p className="text-gray-400 text-sm">Welcome back, {displayName}</p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <MapPin className="h-5 w-5 text-orange-500" />
-            <span className="text-gray-300 text-sm">
+          <div className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2">
+            <MapPin className="h-4 w-4 text-emerald-400" />
+            <span className="text-gray-300 text-sm font-medium">
               {(user as any)?.areas?.name ?? "Area not assigned"}
             </span>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Stats Grid - Evenly distributed */}
+      {/* Stats Grid */}
       <div className="p-4">
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-5 sm:mb-6">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
           {statsData.map((stat, index) => {
             const isImageIcon = typeof stat.icon === 'string';
             const Icon = isImageIcon ? null : stat.icon;
             return (
-              <div key={index} className="bg-gray-800 rounded-lg p-3 sm:p-4 border border-gray-700">
+              <div key={index} className="app-stat-card p-3 sm:p-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-gray-400 text-xs sm:text-sm">{stat.title}</p>
-                    <div className="text-xl sm:text-2xl font-bold text-white">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-gray-400 text-xs sm:text-sm font-medium">{stat.title}</p>
+                    <div className="text-xl sm:text-2xl font-bold text-white mt-0.5">
                       {loading ? (
-                        <div className="animate-pulse bg-gray-600 h-8 w-16 rounded"></div>
+                        <div className="animate-pulse h-8 w-16 rounded bg-gray-600/50" />
                       ) : (
                         stat.value
                       )}
                     </div>
-                    <p className="text-green-400 text-[11px] sm:text-xs">{stat.change}</p>
+                    {stat.change ? <p className="text-emerald-400/90 text-[11px] sm:text-xs mt-0.5">{stat.change}</p> : null}
                   </div>
                   {isImageIcon ? (
-                    <img 
-                      src={stat.icon} 
+                    <img
+                      src={stat.icon}
                       alt={stat.title}
+                      className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 opacity-90"
                       style={{
-                        filter: stat.iconColor === 'blue' 
-                          ? 'brightness(0) saturate(100%) invert(39%) sepia(96%) saturate(1352%) hue-rotate(200deg) brightness(1.1) contrast(1.1)'
+                        filter: stat.iconColor === 'blue'
+                          ? 'brightness(0) saturate(100%) invert(50%) sepia(90%) saturate(1200%) hue-rotate(190deg)'
                           : stat.iconColor === 'orange'
-                          ? 'brightness(0) saturate(100%) invert(65%) sepia(96%) saturate(1352%) hue-rotate(0deg) brightness(1.1) contrast(1.1)'
-                          : 'brightness(0) saturate(100%) invert(27%) sepia(96%) saturate(1352%) hue-rotate(95deg) brightness(98%) contrast(89%)'
+                          ? 'brightness(0) saturate(100%) invert(60%) sepia(90%) saturate(1200%) hue-rotate(0deg)'
+                          : 'brightness(0) saturate(100%) invert(60%) sepia(70%) saturate(800%) hue-rotate(120deg)',
                       }}
-                      className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0"
                     />
                   ) : (
-                    Icon && <Icon className={`h-8 w-8 sm:h-10 sm:w-10 ${stat.color} flex-shrink-0`} />
+                    Icon && <Icon className="h-8 w-8 sm:h-10 sm:w-10 text-emerald-400/90 flex-shrink-0" />
                   )}
                 </div>
               </div>
@@ -617,83 +561,80 @@ export default function DashboardPage() {
           })}
         </div>
 
-        {/* Live Collection Section - Same as Pickups page */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 mb-6">
-          <div className="p-3 sm:p-4 border-b border-gray-700">
+        {/* Live Collection */}
+        <div className="app-card mb-6 overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-[var(--app-border)]">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <img 
-                  src="/delivery.png" 
-                  alt="Live Collection"
-                  style={{
-                    filter: 'brightness(0) saturate(100%) invert(27%) sepia(96%) saturate(1352%) hue-rotate(95deg) brightness(98%) contrast(89%)'
-                  }}
-                  className="h-8 w-8 sm:h-10 sm:w-10"
-                />
-                <h2 className="text-base sm:text-lg font-semibold text-white">Live Collection</h2>
+              <div className="flex items-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15">
+                  <img src="/delivery.png" alt="" className="h-6 w-6 opacity-90" style={{ filter: 'brightness(0) saturate(100%) invert(60%) sepia(70%) saturate(800%) hue-rotate(120deg)' }} />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-semibold text-white">Live Collection</h2>
+                  <p className="text-gray-400 text-xs sm:text-sm">Search for a customer to begin collection</p>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <Users className="h-4 w-4 text-gray-400" />
+              <div className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-1.5">
+                <Users className="h-4 w-4 text-emerald-400" />
                 <span className="text-gray-300 text-sm font-medium">{stats.totalCustomers} users</span>
               </div>
             </div>
-            <p className="text-gray-400 text-xs sm:text-sm mt-1">Search for a customer to begin collection</p>
           </div>
-          <div className="p-3 sm:p-4">
-            {/* Search Input */}
+          <div className="p-4 sm:p-5">
             <div className="space-y-4">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -trangray-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search by first name or last name..."
                   value={userSearchTerm}
                   onChange={(e) => setUserSearchTerm(e.target.value)}
-                  className="pl-10 bg-gray-700/50 border-gray-600/50 text-white placeholder-gray-400 focus:border-green-500/50 text-sm"
+                  className="pl-10 app-input-bg text-white placeholder-gray-400 focus:border-emerald-500/50 focus:ring-emerald-500/20 rounded-xl text-sm border"
                 />
               </div>
 
               {/* Search Results */}
               {searchingUsers && (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-green-400" />
-                  <span className="ml-2 text-gray-300">Searching...</span>
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-emerald-400" />
+                  <span className="ml-2 text-gray-400">Searching...</span>
                 </div>
               )}
 
               {!searchingUsers && userSearchTerm.length >= 2 && searchedUsers.length === 0 && (
-                <div className="text-center py-4">
-                  <User className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-400 text-sm">No customers found</p>
-                  <p className="text-xs text-gray-500">Try a different search term</p>
+                <div className="text-center py-8 rounded-xl app-card-inner-subtle">
+                  <User className="h-10 w-10 text-gray-500 mx-auto mb-3" />
+                  <p className="text-gray-300 text-sm font-medium">No customers found</p>
+                  <p className="text-xs text-gray-500 mt-1">Try a different search term</p>
                 </div>
               )}
 
-              {!searchingUsers && userSearchTerm.length < 2 && (
-                <div className="text-center py-4">
-                  <Search className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-400 text-sm">Start typing to search customers</p>
-                  <p className="text-xs text-gray-500">Enter at least 2 characters</p>
+              {!searchingUsers && userSearchTerm.length < 2 && allCustomers.length === 0 && (
+                <div className="text-center py-8 rounded-xl app-card-inner-subtle">
+                  <Search className="h-10 w-10 text-gray-500 mx-auto mb-3" />
+                  <p className="text-gray-300 text-sm font-medium">Start typing to search customers</p>
+                  <p className="text-xs text-gray-500 mt-1">Enter at least 2 characters</p>
                 </div>
               )}
 
-              {searchedUsers.length > 0 && (
+              {!searchingUsers && userSearchTerm.length < 2 && allCustomers.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-xs sm:text-sm text-gray-400">
-                    Found {searchedUsers.length} customer{searchedUsers.length !== 1 ? 's' : ''}
+                    {stats.totalCustomers > allCustomers.length
+                      ? `Showing first ${allCustomers.length} of ${stats.totalCustomers} customers — search by name to find more`
+                      : `${allCustomers.length} customer${allCustomers.length !== 1 ? 's' : ''} — tap one to start collection, or search by name`}
                   </p>
-                  {searchedUsers.map((user) => (
+                  {allCustomers.map((user) => (
                     <div 
                       key={user.id}
-                      className="p-3 sm:p-4 flex items-center justify-between hover:bg-gray-700/60 transition-colors bg-gray-700/30 rounded-lg border border-gray-600/50 cursor-pointer"
+                      className="p-3 sm:p-4 flex items-center justify-between rounded-xl app-card-inner hover:brightness-110 transition-all cursor-pointer"
                       onClick={() => handleUserSelect(user)}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
-                          <Users className="w-5 h-5 text-green-600" />
+                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                          <Users className="h-5 w-5 text-emerald-400" />
                         </div>
                         <div className="min-w-0">
                           <div className="font-medium text-white text-sm sm:text-base truncate">
-                            {/* Always prioritize first_name and last_name from users table (saved during Sign Up/Profile Completion) */}
                             {user.first_name && user.last_name 
                               ? `${user.first_name} ${user.last_name}`.trim()
                               : user.full_name || user.email?.split('@')[0] || 'Unknown User'}
@@ -702,7 +643,7 @@ export default function DashboardPage() {
                             {user.email ? user.email.replace(/(.{2})(.*)(@.*)/, '$1***$3') : ''}
                           </div>
                           <div className="flex items-center gap-2 text-[11px] sm:text-xs text-gray-400 truncate">
-                            <MapPin className="h-3 w-3 text-orange-400 flex-shrink-0" />
+                            <MapPin className="h-3 w-3 text-emerald-400 flex-shrink-0" />
                             <span className="truncate" title="Address hidden for privacy">
                               {user.street_addr ? user.street_addr.replace(/[A-Za-z0-9]/g, '*') : 'Address not provided'}
                             </span>
@@ -716,7 +657,57 @@ export default function DashboardPage() {
                             e.stopPropagation();
                             handleUserSelect(user);
                           }}
-                          className="bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white px-3 py-2 text-xs sm:text-sm"
+                          className="app-btn-primary px-4 py-2 text-xs sm:text-sm flex-shrink-0"
+                        >
+                          Collect
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {searchedUsers.length > 0 && userSearchTerm.length >= 2 && (
+                <div className="space-y-2">
+                  <p className="text-xs sm:text-sm text-gray-400">
+                    Found {searchedUsers.length} customer{searchedUsers.length !== 1 ? 's' : ''}
+                  </p>
+                  {searchedUsers.map((user) => (
+                    <div 
+                      key={user.id}
+                      className="p-3 sm:p-4 flex items-center justify-between rounded-xl app-card-inner hover:brightness-110 transition-all cursor-pointer"
+                      onClick={() => handleUserSelect(user)}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                          <Users className="h-5 w-5 text-emerald-400" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-medium text-white text-sm sm:text-base truncate">
+                            {/* Always prioritize first_name and last_name from users table (saved during Sign Up/Profile Completion) */}
+                            {user.first_name && user.last_name 
+                              ? `${user.first_name} ${user.last_name}`.trim()
+                              : user.full_name || user.email?.split('@')[0] || 'Unknown User'}
+                          </div>
+                          <div className="text-xs sm:text-sm text-gray-400 truncate">
+                            {user.email ? user.email.replace(/(.{2})(.*)(@.*)/, '$1***$3') : ''}
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] sm:text-xs text-gray-400 truncate">
+                            <MapPin className="h-3 w-3 text-emerald-400 flex-shrink-0" />
+                            <span className="truncate" title="Address hidden for privacy">
+                              {user.street_addr ? user.street_addr.replace(/[A-Za-z0-9]/g, '*') : 'Address not provided'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUserSelect(user);
+                          }}
+                          className="app-btn-primary px-4 py-2 text-xs sm:text-sm flex-shrink-0"
                         >
                           Collect
                         </Button>
@@ -729,41 +720,39 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent Pickups - Collapsible */}
+        {/* Recent Pickups */}
         <Collapsible open={isRecentPickupsOpen} onOpenChange={setIsRecentPickupsOpen} className="mb-6">
           <CollapsibleTrigger asChild>
-            <Card className="bg-gray-800 border-gray-700 text-white cursor-pointer hover:bg-gray-750 transition-colors">
-              <CardHeader className="p-3 sm:p-4">
+            <Card className="app-card text-white cursor-pointer hover:brightness-110 transition-all">
+              <CardHeader className="p-4 sm:p-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <History className="h-5 w-5 text-blue-400" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15">
+                      <History className="h-5 w-5 text-blue-400" />
+                    </div>
                     <div>
                       <CardTitle className="text-base sm:text-lg font-semibold text-white">Recent Pickups</CardTitle>
-                      <CardDescription className="text-gray-300 text-xs sm:text-sm">
+                      <CardDescription className="text-gray-400 text-xs sm:text-sm">
                         {recentPickups.length} recent pickup{recentPickups.length !== 1 ? 's' : ''}
                       </CardDescription>
                     </div>
                   </div>
-                  {isRecentPickupsOpen ? (
-                    <ChevronUp className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <ChevronDown className="h-5 w-5 text-gray-400" />
-                  )}
+                  {isRecentPickupsOpen ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
                 </div>
               </CardHeader>
             </Card>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="bg-gray-800 rounded-lg border border-gray-700">
-              <div className="divide-y divide-gray-700">
+            <div className="app-card overflow-hidden mt-2">
+              <div className="divide-y divide-[var(--app-border)]">
                 {recentPickups.length === 0 ? (
-                  <div className="p-4 text-center">
-                    <History className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <div className="p-6 text-center">
+                    <History className="h-10 w-10 text-gray-500 mx-auto mb-2" />
                     <p className="text-gray-400 text-sm">No recent pickups</p>
                   </div>
                 ) : (
                   recentPickups.map((pickup) => (
-                    <div key={pickup.id} className="p-3 sm:p-4 flex items-center justify-between">
+                    <div key={pickup.id} className="p-4 flex items-center justify-between">
                       <div>
                         <p className="text-white font-medium text-sm sm:text-base">{pickup.customer}</p>
                         <p className="text-gray-400 text-xs sm:text-sm">{pickup.address}</p>
@@ -791,42 +780,40 @@ export default function DashboardPage() {
           </CollapsibleContent>
         </Collapsible>
 
-        {/* Pickup Requests Card - Collapsible */}
+        {/* Pickup Requests */}
         <Collapsible open={isPickupRequestsOpen} onOpenChange={setIsPickupRequestsOpen} className="mb-6">
           <CollapsibleTrigger asChild>
-            <Card className="bg-gray-800 border-gray-700 text-white cursor-pointer hover:bg-gray-750 transition-colors">
-              <CardHeader className="p-3 sm:p-4">
+            <Card className="app-card text-white cursor-pointer hover:brightness-110 transition-all">
+              <CardHeader className="p-4 sm:p-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Clock className="h-5 w-5 text-yellow-400" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15">
+                      <Clock className="h-5 w-5 text-amber-400" />
+                    </div>
                     <div>
                       <CardTitle className="text-base sm:text-lg font-semibold text-white">Pickup Requests</CardTitle>
-                      <CardDescription className="text-gray-300 text-xs sm:text-sm">
+                      <CardDescription className="text-gray-400 text-xs sm:text-sm">
                         {pickupRequests.length} pending request{pickupRequests.length !== 1 ? 's' : ''}
                       </CardDescription>
                     </div>
                   </div>
-                  {isPickupRequestsOpen ? (
-                    <ChevronUp className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <ChevronDown className="h-5 w-5 text-gray-400" />
-                  )}
+                  {isPickupRequestsOpen ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
                 </div>
               </CardHeader>
             </Card>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="bg-gray-800 rounded-lg border border-gray-700">
-              <div className="divide-y divide-gray-700">
+            <div className="app-card overflow-hidden mt-2">
+              <div className="divide-y divide-[var(--app-border)]">
                 {pickupRequests.length === 0 ? (
-                  <div className="p-4 text-center">
-                    <Clock className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <div className="p-6 text-center">
+                    <Clock className="h-10 w-10 text-gray-500 mx-auto mb-2" />
                     <p className="text-gray-400 text-sm">No pickup requests</p>
-                    <p className="text-xs text-gray-500">All requests have been processed</p>
+                    <p className="text-xs text-gray-500 mt-1">All requests have been processed</p>
                   </div>
                 ) : (
                   pickupRequests.map((request) => (
-                    <div key={request.id} className="p-3 sm:p-4 flex items-center justify-between">
+                    <div key={request.id} className="p-4 flex items-center justify-between">
                       <div>
                         <p className="text-white font-medium text-sm sm:text-base">{request.customer}</p>
                         <p className="text-gray-400 text-xs sm:text-sm">{request.address}</p>

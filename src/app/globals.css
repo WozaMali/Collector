@@ -1,8 +1,18 @@
 @import "tailwindcss";
 
+/* Woza Collector – darker grey theme */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f5f5f5;
+  --foreground: #0a0a0a;
+  --app-bg: #0a0a0a;
+  --app-surface: #141414;
+  --app-surface-elevated: #262626;
+  --app-border: #262626;
+  --app-accent: #10b981;
+  --app-accent-soft: rgba(16, 185, 129, 0.15);
+  --app-muted: #737373;
+  --app-text: #fafafa;
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.25);
 }
 
 @theme inline {
@@ -15,22 +25,91 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
-    --foreground: #ededed;
-    
-    /* Rich Yellow Glow Effects for Dark Mode */
-    --glow-primary: 0 0 20px hsl(45 100% 60% / 0.3);
-    --glow-secondary: 0 0 15px hsl(45 100% 50% / 0.2);
-    --glow-card: 0 0 25px hsl(45 100% 60% / 0.15);
-    --glow-accent: 0 0 30px hsl(45 100% 50% / 0.25);
+    --foreground: #fafafa;
+    --app-bg: #0a0a0a;
+    --app-surface: #141414;
+    --app-surface-elevated: #262626;
+    --app-border: #262626;
+    --app-accent: #10b981;
+    --app-accent-soft: rgba(16, 185, 129, 0.15);
+    --app-muted: #737373;
+    --app-text: #fafafa;
+    --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.4);
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-  /* Safe area and space for bottom nav on mobile */
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+  font-family: var(--font-sans-app, ui-sans-serif, system-ui, sans-serif);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
+}
+
+/* App shell – dark theme pages */
+.app-shell {
+  background: var(--app-bg);
+  min-height: 100vh;
+}
+
+.app-header {
+  background: var(--app-surface);
+  border-bottom: 1px solid var(--app-border);
+  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.04);
+}
+
+.app-card {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+}
+
+.app-card-elevated {
+  background: var(--app-surface-elevated);
+  border: 1px solid var(--app-border);
+  border-radius: 14px;
+}
+
+.app-stat-card {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 14px;
+  border-left: 4px solid var(--app-accent);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.app-stat-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card);
+}
+
+/* Card interiors – match current theme (darker grey) */
+.app-card-inner {
+  background: var(--app-surface-elevated);
+  border: 1px solid var(--app-border);
+}
+
+.app-card-inner-subtle {
+  background: color-mix(in srgb, var(--app-surface-elevated) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-border) 60%, transparent);
+}
+
+.app-input-bg {
+  background: var(--app-surface-elevated);
+  border-color: var(--app-border);
+}
+
+.app-btn-primary {
+  background: #10b981;
+  color: white;
+  font-weight: 600;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.app-btn-primary:hover {
+  background: #059669;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
 }
 
 /* Hide Next.js development indicator */
@@ -57,7 +136,7 @@ body {
   overflow: hidden;
 }
 
-/* Elegant background overlay - Green theme matching Collector Icon */
+/* Elegant background overlay - Emerald theme matching app */
 .collector-splash-screen::before {
   content: '';
   position: absolute;
@@ -65,8 +144,8 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(circle at 30% 30%, rgba(34, 197, 94, 0.15) 0%, transparent 50%),
-              radial-gradient(circle at 70% 70%, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
+  background: radial-gradient(circle at 30% 30%, rgba(16, 185, 129, 0.18) 0%, transparent 50%),
+              radial-gradient(circle at 70% 70%, rgba(5, 150, 105, 0.12) 0%, transparent 50%);
   animation: collectorBackgroundPulse 4s ease-in-out infinite;
   pointer-events: none;
 }
@@ -106,7 +185,7 @@ body {
   animation: collectorPulse 2.5s ease-in-out infinite;
   position: relative;
   /* Use the image as a mask to remove black background */
-  background: #22c55e;
+  background: #10b981;
   -webkit-mask-image: url('/W Green.png.png');
   -webkit-mask-size: contain;
   -webkit-mask-repeat: no-repeat;
@@ -115,7 +194,7 @@ body {
   mask-size: contain;
   mask-repeat: no-repeat;
   mask-position: center;
-  filter: drop-shadow(0 0 40px rgba(34, 197, 94, 0.6)) drop-shadow(0 0 80px rgba(34, 197, 94, 0.4)) drop-shadow(0 0 120px rgba(34, 197, 94, 0.2));
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
 }
 
 .collector-splash-logo img {
@@ -127,26 +206,24 @@ body {
   font-weight: 800;
   margin-bottom: 0.75rem;
   letter-spacing: -1px;
-  background: linear-gradient(135deg, #ffffff 0%, #22c55e 50%, #ffffff 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #10b981 50%, #ffffff 100%);
   background-size: 200% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   animation: collectorTextShimmer 3s ease-in-out infinite;
-  text-shadow: 0 0 30px rgba(34, 197, 94, 0.5);
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 .collector-splash-tagline {
   font-size: 1.5rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #22c55e 0%, #10b981 50%, #22c55e 100%);
+  background: linear-gradient(135deg, #10b981 0%, #059669 50%, #10b981 100%);
   background-size: 200% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin-bottom: 0.5rem;
-  text-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
   letter-spacing: 1px;
   animation: collectorTextShimmer 3s ease-in-out infinite;
 }
@@ -171,15 +248,12 @@ body {
 .collector-splash-spinner {
   width: 56px;
   height: 56px;
-  border: 4px solid rgba(255, 255, 255, 0.05);
-  border-top: 4px solid #22c55e;
-  border-right: 4px solid #10b981;
+  border: 4px solid rgba(255, 255, 255, 0.06);
+  border-top: 4px solid #10b981;
+  border-right: 4px solid #059669;
   border-radius: 50%;
   animation: collectorSpin 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
-  box-shadow: 
-    0 0 30px rgba(34, 197, 94, 0.5),
-    0 0 60px rgba(34, 197, 94, 0.2),
-    inset 0 0 20px rgba(34, 197, 94, 0.1);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
   position: relative;
 }
 
@@ -189,7 +263,7 @@ body {
   inset: -4px;
   border-radius: 50%;
   border: 4px solid transparent;
-  border-top: 4px solid rgba(34, 197, 94, 0.3);
+  border-top: 4px solid rgba(16, 185, 129, 0.4);
   animation: collectorSpin 0.8s linear infinite reverse;
 }
 
@@ -207,15 +281,11 @@ body {
 @keyframes collectorPulse {
   0%, 100% { 
     transform: scale(1) translateY(0);
-    box-shadow: 
-      0 0 60px rgba(34, 197, 94, 0.3),
-      0 8px 32px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   }
   50% { 
     transform: scale(1.08) translateY(-4px);
-    box-shadow: 
-      0 0 80px rgba(34, 197, 94, 0.5),
-      0 16px 48px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
   }
 }
 
