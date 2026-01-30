@@ -174,6 +174,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('🔐 Starting login process for:', email);
       
+      // Verify Supabase client is initialized
+      const supabaseUrl = typeof window !== 'undefined' && window.__SUPABASE_ENV__ 
+        ? window.__SUPABASE_ENV__.url 
+        : process.env.NEXT_PUBLIC_SUPABASE_URL;
+      
+      if (!supabaseUrl) {
+        console.error('❌ Supabase URL not found');
+        return { success: false, error: 'Configuration error: Supabase URL not found. Please check your environment variables.' };
+      }
+      
+      console.log('🔌 Using Supabase URL:', supabaseUrl);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -192,7 +204,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: 'Login failed' };
     } catch (error) {
       console.error('❌ Login error:', error);
-      return { success: false, error: 'An unexpected error occurred' };
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      // Check for common network errors
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+        return { success: false, error: 'Unable to connect to server. Please check your internet connection and try again.' };
+      }
+      return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
     }
@@ -311,6 +328,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('🔐 Starting Google sign-in...');
       
+      // Verify Supabase client is initialized
+      const supabaseUrl = typeof window !== 'undefined' && window.__SUPABASE_ENV__ 
+        ? window.__SUPABASE_ENV__.url 
+        : process.env.NEXT_PUBLIC_SUPABASE_URL;
+      
+      if (!supabaseUrl) {
+        console.error('❌ Supabase URL not found');
+        return { success: false, error: 'Configuration error: Supabase URL not found. Please check your environment variables.' };
+      }
+      
       // Check if we're in a native environment (web builds won't have Capacitor)
       // Check for Capacitor at runtime via window object (no import needed)
       let isNative = false;
@@ -362,7 +389,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: true };
     } catch (error) {
       console.error('❌ Google sign-in error:', error);
-      return { success: false, error: 'An unexpected error occurred during Google sign-in.' };
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      // Check for common network errors
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+        return { success: false, error: 'Unable to connect to authentication service. Please check your internet connection and try again.' };
+      }
+      return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
     }
