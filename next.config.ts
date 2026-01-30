@@ -123,6 +123,9 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizeCss: false,
   },
+  
+  // Turbopack configuration (Next.js 16+ uses Turbopack by default)
+  turbopack: {},
 };
 
 export default nextConfig;
