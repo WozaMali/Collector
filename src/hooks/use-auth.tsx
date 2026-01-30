@@ -174,17 +174,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('🔐 Starting login process for:', email);
       
-      // Verify Supabase client is initialized
-      const supabaseUrl = typeof window !== 'undefined' && window.__SUPABASE_ENV__ 
-        ? window.__SUPABASE_ENV__.url 
-        : process.env.NEXT_PUBLIC_SUPABASE_URL;
-      
-      if (!supabaseUrl) {
-        console.error('❌ Supabase URL not found');
-        return { success: false, error: 'Configuration error: Supabase URL not found. Please check your environment variables.' };
+      // Log environment status for debugging
+      if (typeof window !== 'undefined' && window.__SUPABASE_ENV__) {
+        console.log('🔌 Supabase env found:', window.__SUPABASE_ENV__.url ? 'URL present' : 'URL missing');
+      } else {
+        console.warn('⚠️ window.__SUPABASE_ENV__ not found - Supabase client will use process.env fallback');
       }
-      
-      console.log('🔌 Using Supabase URL:', supabaseUrl);
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -328,14 +323,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('🔐 Starting Google sign-in...');
       
-      // Verify Supabase client is initialized
-      const supabaseUrl = typeof window !== 'undefined' && window.__SUPABASE_ENV__ 
-        ? window.__SUPABASE_ENV__.url 
-        : process.env.NEXT_PUBLIC_SUPABASE_URL;
-      
-      if (!supabaseUrl) {
-        console.error('❌ Supabase URL not found');
-        return { success: false, error: 'Configuration error: Supabase URL not found. Please check your environment variables.' };
+      // Log environment status for debugging
+      if (typeof window !== 'undefined' && window.__SUPABASE_ENV__) {
+        console.log('🔌 Supabase env found:', window.__SUPABASE_ENV__.url ? 'URL present' : 'URL missing');
+      } else {
+        console.warn('⚠️ window.__SUPABASE_ENV__ not found - Supabase client will use process.env fallback');
       }
       
       // Check if we're in a native environment (web builds won't have Capacitor)
